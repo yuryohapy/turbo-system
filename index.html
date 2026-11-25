@@ -292,12 +292,40 @@ const LH='lk-subs-hist-v1';
 function loadHist(){try{const a=JSON.parse(localStorage.getItem(LH)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
 function saveHist(a){try{localStorage.setItem(LH,JSON.stringify(a));return true}catch(e){return false}}
 function scoreOf(g){let us=0,th=0;for(const e of g.events)if(e.k==='pts'){if(e.side==='us')us+=e.v;else th+=e.v}return[us,th]}
-function archiveCurrent(){const g=S.g;if(g.demo||!g.events.length)return true;const[us,th]=scoreOf(g);const rec=Object.assign(JSON.parse(JSON.stringify(g)),{running:false,roster:JSON.parse(JSON.stringify(S.roster)),set:Object.assign({},S.set),us,th,savedAt:new Date().toISOString()});const a=loadHist().filter(x=>x.id!==g.id);a.unshift(rec);const ok=saveHist(a);if(!ok)alertMsg('試合一覧への保存に失敗しました（端末の空き容量不足）。古い試合を削除してください。');return ok}
+function makeRec(){const g=S.g,D=derive();const min=S.roster.filter(r=>D.M[r.no]&&D.M[r.no].tot>0).map(r=>{const m=D.M[r.no];return{no:r.no,name:r.name,min:fmt(m.tot),dec:+(m.tot/60).toFixed(2),pm:m.pm}});return Object.assign(JSON.parse(JSON.stringify(g)),{running:false,clock:Math.round(g.clock),roster:JSON.parse(JSON.stringify(S.roster)),set:Object.assign({},S.set),us:D.us,th:D.th,min,savedAt:new Date().toISOString()})}
+function archiveCurrent(){const g=S.g;if(g.demo||!g.events.length)return true;const rec=makeRec();const a=loadHist().filter(x=>x.id!==g.id);a.unshift(rec);const ok=saveHist(a);markDirty(g.id);if(!ok)alertMsg('試合一覧への保存に失敗しました（端末の空き容量不足）。古い試合を削除してください。');return ok}
 function alertMsg(t){const el=$('cloud');if(el)el.textContent=t}
+const LC='lk-subs-gsheet-v1',LQ='lk-subs-gq-v1';
+let CFG=(()=>{try{return JSON.parse(localStorage.getItem(LC)||'{}')||{}}catch(e){return{}}})();
+let GQ=(()=>{try{const a=JSON.parse(localStorage.getItem(LQ)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}})();
+let gMsg='',gTimer=null,gBusy=false;
+const gOn=()=>!!(CFG.url&&CFG.key);
+function saveCfg(){try{localStorage.setItem(LC,JSON.stringify(CFG))}catch(e){}}
+function saveQ(){try{localStorage.setItem(LQ,JSON.stringify(GQ))}catch(e){}}
+async function gCall(body){
+  const ctl=typeof AbortController!=='undefined'?new AbortController():null;const t=ctl?setTimeout(()=>ctl.abort(),20000):0;
+  try{const r=await fetch(CFG.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({key:CFG.key},body)),signal:ctl?ctl.signal:undefined});
+    const j=await r.json();if(!j||!j.ok)throw new Error(j&&j.error||'error');return j}finally{if(t)clearTimeout(t)}}
+function markDirty(id){if(!gOn()||!id)return;if(!GQ.includes(id)){GQ.push(id);saveQ()}clearTimeout(gTimer);gTimer=setTimeout(gFlush,3000)}
+async function gFlush(){
+  if(!gOn()||gBusy||!GQ.length){renderStatus();return}
+  if(typeof navigator!=='undefined'&&navigator.onLine===false){gMsg='未送信 '+GQ.length+'試合（通信回復後に自動送信）';renderStatus();return}
+  gBusy=true;
+  for(const id of GQ.slice()){
+    let rec=null;
+    if(id===S.g.id&&!S.g.demo&&S.g.events.length)rec=makeRec();else rec=loadHist().find(x=>x.id===id)||null;
+    if(!rec){GQ=GQ.filter(x=>x!==id);continue}
+    try{await gCall({action:'save',game:rec});GQ=GQ.filter(x=>x!==id);gMsg='スプレッドシートに保存 '+hhmm()}
+    catch(e){gMsg=(e&&e.message==='key')?'スプレッドシート：合言葉が一致しません（設定を確認）':'未送信 '+GQ.length+'試合（通信回復後に自動送信）';break}
+  }
+  saveQ();gBusy=false;renderStatus();
+}
+window.addEventListener('online',()=>gFlush());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')gFlush()});
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
 let db=null,cloudMsg='保存先を確認中',cTimer=null,cBusy=false,cDirty=false;
 const hhmm=()=>{const d=new Date();return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')};
-function renderStatus(){$('cloud').textContent=(S.g.demo?'サンプル表示中。':'この端末に保存済み。')+cloudMsg}
+function renderStatus(){$('cloud').textContent=(S.g.demo?'サンプル表示中。':'この端末に保存済み。')+(gOn()?(gMsg||'スプレッドシート連携中'):cloudMsg)}
 function scheduleCloud(){if(!db||S.g.demo)return;cDirty=true;clearTimeout(cTimer);cTimer=setTimeout(flushCloud,1500)}
 async function flushCloud(){
   if(!db||cBusy||!cDirty)return;cBusy=true;cDirty=false;
@@ -308,8 +336,8 @@ async function flushCloud(){
   cBusy=false;renderStatus();
 }
 window.addEventListener('online',()=>{if(cDirty)flushCloud()});
-(async()=>{let d=null;try{d=window.claude&&window.claude.use?await window.claude.use('db'):null}catch(e){d=null}db=d;cloudMsg=db?'クラウド保存 待機中':'別端末へは設定のバックアップで移せます';renderStatus();if(db&&!S.g.demo&&S.g.events.length){cDirty=true;flushCloud()}})();
-function commit(){saveLocal();scheduleCloud();render();renderStatus()}
+(async()=>{let d=null;try{d=window.claude&&window.claude.use?await window.claude.use('db'):null}catch(e){d=null}db=d;cloudMsg=db?'クラウド保存 待機中':'別端末とつなぐには設定でスプレッドシート連携';renderStatus();if(db&&!S.g.demo&&S.g.events.length){cDirty=true;flushCloud()}})();
+function commit(){saveLocal();scheduleCloud();if(!S.g.demo&&S.g.events.length)markDirty(S.g.id);render();renderStatus()}
 function pushUndo(kind){undoStack.push({kind,ev:JSON.stringify(S.g.events),p:S.g.period,c:S.g.clock,f:S.g.final});if(undoStack.length>100)undoStack.shift()}
 function addEvent(e){const g=S.g;e.gt=gameTime();e.p=g.period;e.cl=g.clock;g.events.push(e)}
 
@@ -384,6 +412,11 @@ function settingsHtml(){const g=S.g;
   <div class="scroll"><table class="rt"><thead><tr><th>登録</th><th>#</th><th>名前</th><th>平均（分:秒）</th><th>1Q目安</th><th></th></tr></thead><tbody id="rtb">${S.roster.map((r,i)=>`<tr data-i="${i}"><td><input type="checkbox" data-f="dr" ${r.dr?'checked':''} aria-label="登録"></td><td><input data-f="no" inputmode="numeric" value="${r.no}" style="width:4.5em"></td><td><input data-f="name" value="${esc(r.name)}"></td><td><input data-f="avg" value="${r.avg?fmt(r.avg):''}" placeholder="なし" style="width:6em"></td><td class="r">${r.avg?fmt(r.avg/4):'—'}</td><td><button class="btn" data-del="${i}" style="height:40px;padding:0 10px">削除</button></td></tr>`).join('')}</tbody></table></div>
   <div class="dact" style="justify-content:flex-start"><button class="btn" id="sAdd">選手を追加</button></div>
   <p class="msg" id="sMsg"></p>
+  <h4>Googleスプレッドシート連携（パソコンとiPadをつなぐ）</h4>
+  <p class="note">保存先のURLと合言葉を、パソコンとiPadの両方に同じものを入れます。試合が自動でスプレッドシートに保存され、「試合一覧」でどちらの端末の試合も開けます。</p>
+  <div class="fr"><label style="flex:1 1 320px">ウェブアプリのURL<input id="gUrl" value="${esc(CFG.url||'')}" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"></label><label>合言葉<input id="gKey" value="${esc(CFG.key||'')}" autocomplete="off" style="width:10em"></label></div>
+  <div class="dact" style="justify-content:flex-start"><button class="btn" id="gTest">接続テスト</button><button class="btn" id="gNow">今すぐ全試合を送信</button></div>
+  <p class="msg" id="gMsgEl"></p>
   <h4>試合</h4>
   <div class="dact" style="justify-content:flex-start"><button class="btn mar" id="sNew">新しい試合を始める</button>${db?'<button class="btn" id="sCloud">クラウドの試合を開く</button>':''}<button class="btn" id="sBak">記録をバックアップ保存</button><label class="btn" style="display:inline-grid;place-items:center;cursor:pointer">バックアップを読み込む<input type="file" id="sLoad" accept=".json,application/json" hidden></label><button class="btn" id="sDemo">サンプルを表示</button></div>
   <div id="sList"></div>
@@ -407,7 +440,13 @@ function openSettings(){openDlg(settingsHtml(),b=>{
   const cb=b.querySelector('#sCloud');if(cb)cb.onclick=()=>listCloud(b);
   b.querySelector('#sBak').onclick=()=>{const fn=`LADYKITES_交代記録_${S.g.date}_${(S.g.opp||'試合').replace(/[\\/:*?"<>|]/g,'')}.json`;try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);msg('保存しました：'+fn+'（別の端末で「バックアップを読み込む」から開けます）')}catch(e){msg('保存できませんでした。')}};
   b.querySelector('#sLoad').onchange=async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x||!x.g||!Array.isArray(x.roster)||!Array.isArray(x.g.events))throw 0;archiveCurrent();S=x;S.g.running=false;undoStack=[];selOut.clear();selIn.clear();commit();dlg.close()}catch(err){msg('このファイルは読み込めません（交代記録のバックアップを選んでください）。')}};
-  b.querySelector('#sClose').onclick=()=>dlg.close()})}
+  b.querySelector('#sClose').onclick=()=>dlg.close();
+  const gm=t=>b.querySelector('#gMsgEl').textContent=t;
+  const rd=()=>{CFG.url=b.querySelector('#gUrl').value.trim();CFG.key=b.querySelector('#gKey').value.trim();saveCfg()};
+  b.querySelector('#gUrl').onchange=()=>{rd();renderStatus()};b.querySelector('#gKey').onchange=()=>{rd();renderStatus()};
+  b.querySelector('#gTest').onclick=async()=>{rd();if(!gOn()){gm('URLと合言葉を入力してください。');return}if(!/^https:\/\/script\.google\.com\//.test(CFG.url)){gm('URLは https://script.google.com/ で始まるものを入れてください。');return}gm('接続中…');try{await gCall({action:'ping'});gm('つながりました。');gMsg='スプレッドシート連携中';renderStatus()}catch(e){gm(e&&e.message==='key'?'合言葉が一致しません。スクリプトの KEY と同じにしてください。':'つながりませんでした。URL、デプロイ設定（アクセス：全員）、通信を確認してください。')}};
+  b.querySelector('#gNow').onclick=async()=>{rd();if(!gOn()){gm('先にURLと合言葉を入れてください。');return}loadHist().forEach(x=>{if(!GQ.includes(x.id))GQ.push(x.id)});if(!S.g.demo&&S.g.events.length&&!GQ.includes(S.g.id))GQ.push(S.g.id);saveQ();gm('送信中…');await gFlush();gm(GQ.length?gMsg:'すべて送信しました。')};
+})}
 function confirmNew(b){const box=b.querySelector('#sList');
   box.innerHTML=`<p class="msg">新しい試合を始めます。${S.g.demo?'':'今の試合は「試合一覧」に保存され、あとから開けます。'}名簿と目安は引き継ぎます。</p><div class="dact" style="justify-content:flex-start"><button class="btn mar" id="nOk">始める</button></div>`;
   box.querySelector('#nOk').onclick=()=>{startNew(S.g.demo?'':S.g.opp);dlg.close()}}
@@ -424,21 +463,26 @@ async function listCloud(b){const box=b.querySelector('#sList');
       if(Array.isArray(x.roster)&&x.roster.length)S.roster=JSON.parse(JSON.stringify(x.roster));if(x.set)S.set=Object.assign({},x.set);
       undoStack=[];selOut.clear();selIn.clear();saveLocal();render();renderStatus();dlg.close()})}
   catch(e){clearTimeout(t);box.innerHTML='<p class="msg">読み込めませんでした（'+esc(e&&e.code||'不明')+'）。</p>'}}
-function openHist(){
-  const a=loadHist().sort((x,y)=>String(y.date||'').localeCompare(String(x.date||''))||String(y.savedAt||'').localeCompare(String(x.savedAt||''))),cur=S.g;
-  openDlg(`<h3>試合一覧</h3><p class="note">「新しい試合を始める」を押したときと試合終了のときに自動で保存されます。保存先はこの端末の中です。</p>${a.length?`<div class="scroll"><table><thead><tr><th>日付</th><th>相手</th><th class="r">スコア</th><th>状態</th><th></th></tr></thead><tbody>${a.map(x=>`<tr${x.id===cur.id?' style="font-weight:700"':''}><td style="white-space:nowrap">${esc(x.date)}</td><td>${esc(x.opp||'—')}${x.id===cur.id?'（表示中）':''}</td><td class="r">${esc(x.us)}-${esc(x.th)}</td><td>${x.final?'終了':esc(pName(+x.period||1))}</td><td style="white-space:nowrap"><button class="btn" data-open="${esc(x.id)}" style="height:40px">開く</button> <button class="btn" data-hdel="${esc(x.id)}" style="height:40px">削除</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="note">まだ保存された試合はありません。</p>'}<p class="msg" id="hMsg"></p><div class="dact"><button class="btn pri" id="hClose">閉じる</button></div>`,b=>{
+function openHist(cloud){
+  const loc=loadHist(),cur=S.g,map={};loc.forEach(x=>map[x.id]=Object.assign({},x,{_loc:true}));
+  (cloud||[]).forEach(c=>{const l=map[c.id];if(!l)map[c.id]=Object.assign({},c,{_cloud:true});else if(String(c.savedAt)>String(l.savedAt))map[c.id]=Object.assign({},c,{_cloud:true,_newer:true})});
+  const a=Object.values(map).sort((x,y)=>String(y.date||'').localeCompare(String(x.date||''))||String(y.savedAt||'').localeCompare(String(x.savedAt||'')));
+  openDlg(`<h3>試合一覧</h3><p class="note">「新しい試合を始める」を押したときと試合終了のときに自動で保存されます。${gOn()?(cloud?'スプレッドシートの試合も表示しています（☁＝別の端末で記録）。':'スプレッドシートを確認中…'):'保存先はこの端末の中です（設定でスプレッドシート連携すると別の端末とつながります）。'}</p>${a.length?`<div class="scroll"><table><thead><tr><th>日付</th><th>相手</th><th class="r">スコア</th><th>状態</th><th></th></tr></thead><tbody>${a.map(x=>`<tr${x.id===cur.id?' style="font-weight:700"':''}><td style="white-space:nowrap">${esc(x.date)}</td><td>${x._cloud?'☁ ':''}${esc(x.opp||'—')}${x.id===cur.id?'（表示中）':''}</td><td class="r">${esc(x.us)}-${esc(x.th)}</td><td>${x.final?'終了':esc(pName(+x.period||1))}</td><td style="white-space:nowrap"><button class="btn" data-open="${esc(x.id)}" style="height:40px">開く</button> <button class="btn" data-hdel="${esc(x.id)}" style="height:40px">削除</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="note">まだ保存された試合はありません。</p>'}<p class="msg" id="hMsg"></p><div class="dact"><button class="btn pri" id="hClose">閉じる</button></div>`,b=>{
     const msg=t=>b.querySelector('#hMsg').textContent=t;
     b.querySelector('#hClose').onclick=()=>dlg.close();
-    b.querySelectorAll('[data-open]').forEach(bt=>bt.onclick=()=>{const x=loadHist().find(r=>r.id===bt.dataset.open);if(!x)return;if(x.id!==S.g.id)archiveCurrent();
+    b.querySelectorAll('[data-open]').forEach(bt=>bt.onclick=async()=>{const id=bt.dataset.open,row=map[id];let x=null;
+      if(row&&row._cloud){msg('スプレッドシートから読み込み中…');try{x=(await gCall({action:'get',id})).game;const h2=loadHist().filter(r=>r.id!==id);h2.unshift(x);saveHist(h2)}catch(e){msg('読み込めませんでした（通信を確認）。');return}}
+      else x=loadHist().find(r=>r.id===id);if(!x)return;if(x.id!==S.g.id)archiveCurrent();
       S.g={id:x.id,opp:String(x.opp||''),date:String(x.date||today()),period:+x.period||1,clock:+x.clock||0,running:false,final:!!x.final,demo:false,events:Array.isArray(x.events)?x.events:[]};
       if(Array.isArray(x.roster)&&x.roster.length)S.roster=x.roster;if(x.set)S.set=x.set;undoStack=[];selOut.clear();selIn.clear();commit();dlg.close()});
-    b.querySelectorAll('[data-hdel]').forEach(bt=>bt.onclick=()=>{if(bt.dataset.c!=='1'){bt.dataset.c='1';bt.textContent='本当に削除';msg('もう一度押すと一覧から削除します（元に戻せません）。');return}saveHist(loadHist().filter(r=>r.id!==bt.dataset.hdel));openHist()})})}
-$('hist').onclick=openHist;
+    b.querySelectorAll('[data-hdel]').forEach(bt=>bt.onclick=()=>{if(bt.dataset.c!=='1'){bt.dataset.c='1';bt.textContent='本当に削除';msg('もう一度押すと一覧から削除します（元に戻せません）。');return}const id=bt.dataset.hdel;saveHist(loadHist().filter(r=>r.id!==id));GQ=GQ.filter(x=>x!==id);saveQ();if(gOn())gCall({action:'delete',id}).catch(()=>{});openHist((cloud||[]).filter(c=>c.id!==id))})});
+  if(gOn()&&!cloud){gCall({action:'list'}).then(j=>{if(dlg.open&&$('hClose'))openHist(j.games||[])}).catch(()=>{const m=document.getElementById('hMsg');if(m)m.textContent='スプレッドシートに接続できませんでした。この端末の試合だけ表示しています。'})}}
+$('hist').onclick=()=>openHist();
 $('set').onclick=openSettings;
 $('demoNew').onclick=()=>{S.g=newGame('');undoStack=[];selOut.clear();selIn.clear();commit();openSettings()};
 document.addEventListener('mouseup',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.closest('dialog'))b.blur()});
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&!/claude\.ai|claudeusercontent/.test(location.host)){navigator.serviceWorker.register('sw.js').catch(()=>{})}
-render();renderStatus();
+render();renderStatus();setTimeout(gFlush,1500);
 }
 </script>
 </body>

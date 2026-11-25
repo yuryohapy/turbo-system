@@ -1,5 +1,5 @@
 // LADY KITES 交代管理: offline cache. Bump VERSION when files change.
-const VERSION = 'lk-subs-2026-11-25c';
+const VERSION = 'lk-subs-2026-11-25d';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 const CDN = ['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'];
 

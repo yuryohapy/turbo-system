@@ -71,6 +71,7 @@ h2 span{font-weight:400;color:var(--mute);font-size:13px}
 .num{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;font-size:20px;background:var(--maroon);color:#fff;border-radius:6px;padding:0 6px;line-height:1.35}
 .nm{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .face{width:24px;height:24px;flex:none}
+.face+.face{margin-left:-2px}
 .chip{font-size:13px;border-radius:999px;padding:1px 8px;white-space:nowrap;border:1px solid var(--line);background:var(--card)}
 .chip.lv1{background:var(--yel);border-color:var(--yel);color:#1b1214}
 .chip.lv2{background:var(--red);border-color:var(--red);color:#fff}
@@ -161,7 +162,7 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--sel);outline-of
   </section>
   <aside class="side">
     <div class="panel"><h2>出場タイムライン <span id="tlNote"></span></h2><div id="tl"></div></div>
-    <div class="panel"><h2>ラインナップ <span>出場時間順</span></h2><div class="scroll" id="lu"></div></div>
+    <div class="panel"><h2>ラインナップ <span>1分あたり+/-の高い順</span></h2><div class="scroll" id="lu"></div></div>
   </aside>
 </main>
 <div class="pend" id="pend" hidden><div class="txt" id="pendTxt"></div><button class="btn" id="pendX">選択解除</button><button class="btn pri" id="pendOk">交代確定</button></div>
@@ -255,7 +256,7 @@ function courtCard(m){
   const r=m.r,g=S.g;
   const st=`<span class="chip lv${m.sL}">連続 ${fmt(m.stint)}</span>`;
   const q=g.period<=4?barRow(pName(g.period),m.cur,m.qT,m.qL):`<div class="mr"><span>${pName(g.period)}</span><span class="na">延長は警告対象外</span><span class="v">${fmt(m.cur)}</span></div>`;
-  return `<button class="pc lv${m.lv}${selOut.has(r.no)?' sel':''}" data-no="${r.no}" data-z="c"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span>${face(m.stint!=null&&m.stint>=S.set.sy?3:m.lv)}${st}</div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${q}${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
+  return `<button class="pc lv${m.lv}${selOut.has(r.no)?' sel':''}" data-no="${r.no}" data-z="c"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span>${face(Math.max(m.qL,m.cL))}${m.stint!=null&&m.stint>=S.set.sy?face(3):''}${st}</div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${q}${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
 }
 function benchCard(m){
   const r=m.r,rest=m.rest==null?(m.tot>0?'':'未出場'):'休 '+fmt(m.rest);
@@ -271,11 +272,14 @@ function renderTL(D){
   $('tl').innerHTML=rows.length?`<div class="tl">${rows.join('')}<div class="qax"><span></span><div>${qs.join('')}</div><span></span></div></div>`:'<p class="note">交代を記録すると表示されます。</p>';
   $('tlNote').textContent='経過 '+fmt(D.now);
 }
+const luRate=v=>v.sec>0?(v.pf-v.pa)/(v.sec/60):null;
+const luSort=(a,b)=>{const x=luRate(a[1]),y=luRate(b[1]);if(x===null&&y===null)return b[1].sec-a[1].sec;if(x===null)return 1;if(y===null)return -1;return y-x||b[1].sec-a[1].sec};
+const fmtRate=r=>r===null?'—':(r>0?'+':'')+r.toFixed(2);
 function renderLU(D){
-  const rows=Object.entries(D.lu).filter(([k,v])=>k&&(v.sec>0||v.pf||v.pa)).sort((a,b)=>b[1].sec-a[1].sec).slice(0,8);
+  const rows=Object.entries(D.lu).filter(([k,v])=>k&&(v.sec>0||v.pf||v.pa)).sort(luSort);
   if(!rows.length){$('lu').innerHTML='<p class="note">まだ記録がありません。</p>';return}
   const nm=n=>{const r=rosterMap()[n];return r?esc(r.name):'#'+n};
-  $('lu').innerHTML=`<table><thead><tr><th>5人</th><th class="r">時間</th><th class="r">得</th><th class="r">失</th><th class="r">+/-</th></tr></thead><tbody>${rows.map(([k,v])=>{const d=v.pf-v.pa,cur=k===keyOf(D.on);return `<tr${cur?' style="font-weight:700"':''}><td>${k.split('-').map(nm).join('・')}${cur?'（出場中）':''}</td><td class="r">${fmt(v.sec)}</td><td class="r">${v.pf}</td><td class="r">${v.pa}</td><td class="r">${d>0?'+':''}${d}</td></tr>`}).join('')}</tbody></table>`;
+  $('lu').innerHTML=`<table><thead><tr><th>5人</th><th class="r">時間</th><th class="r">得</th><th class="r">失</th><th class="r">+/-</th><th class="r">1分あたり</th></tr></thead><tbody>${rows.map(([k,v])=>{const d=v.pf-v.pa,cur=k===keyOf(D.on);return `<tr${cur?' style="font-weight:700"':''}><td>${k.split('-').map(nm).join('・')}${cur?'（出場中）':''}</td><td class="r">${fmt(v.sec)}</td><td class="r">${v.pf}</td><td class="r">${v.pa}</td><td class="r">${d>0?'+':''}${d}</td><td class="r"><b>${fmtRate(luRate(v))}</b></td></tr>`}).join('')}</tbody></table>`;
 }
 function render(){
   const g=S.g,D=derive();
@@ -392,8 +396,8 @@ function sheets(){
   const qh=['#','NAME'];for(let p=1;p<=maxP;p++)qh.push(pName(p));qh.push('合計');const qs=[qh];
   dr.forEach(r=>{const m=D.M[r.no],row=[r.no,r.name];for(let p=1;p<=maxP;p++)row.push(fmt(ov(m.all,PSTART(p),PSTART(p)+PLEN(p))));row.push(fmt(m.tot));qs.push(row)});
   const nm=n=>{const r=rosterMap()[n];return r?r.name:'#'+n};
-  const lu=[['5人','時間','時間(分)','得点','失点','+/-']];
-  Object.entries(D.lu).filter(([k,v])=>k&&(v.sec||v.pf||v.pa)).sort((a,b)=>b[1].sec-a[1].sec).forEach(([k,v])=>lu.push([k.split('-').map(n=>'#'+n+' '+nm(+n)).join(' / '),fmt(v.sec),+(v.sec/60).toFixed(2),v.pf,v.pa,v.pf-v.pa]));
+  const lu=[['5人','時間','時間(分)','得点','失点','+/-','+/-（1分あたり）']];
+  Object.entries(D.lu).filter(([k,v])=>k&&(v.sec||v.pf||v.pa)).sort(luSort).forEach(([k,v])=>{const r=luRate(v);lu.push([k.split('-').map(n=>'#'+n+' '+nm(+n)).join(' / '),fmt(v.sec),+(v.sec/60).toFixed(2),v.pf,v.pa,v.pf-v.pa,r===null?'':+r.toFixed(2)])});
   const lg=[['Q','残り時間','IN','OUT','スコア（福大-相手）']];
   D.log.forEach(({e,us,th})=>lg.push([pName(e.p),fmt(Math.ceil(e.cl)),e.in.map(n=>'#'+n+' '+nm(n)).join('、'),e.out.map(n=>'#'+n+' '+nm(n)).join('、'),us+'-'+th]));
   return{MIN:min,'Q別':qs,'ラインナップ':lu,'交代ログ':lg};

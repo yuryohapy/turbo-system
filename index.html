@@ -235,7 +235,7 @@ function derive(){
     const ea=effAvg(r),qT=ea/4,cT=ea*Math.min(g.period,4)/4;
     const qL=g.period<=4?lvl(cur,qT):0,cL=lvl(reg,cT);
     const sL=stint==null?0:stint>=S.set.sr?2:stint>=S.set.sy?1:0;
-    M[r.no]={r,on:isOn,all,reg,ot,tot:reg+ot,cur,qT,cT,qL,cL,sL,stint,rest,pm:p.pm,lv:isOn?Math.max(qL,cL,sL):cL};
+    M[r.no]={r,on:isOn,all,reg,ot,tot:reg+ot,cur,qT,cT,qL,cL,sL,stint,rest,pm:p.pm,lv:qL};
   }
   return{now,on,M,lu,log,us,th};
 }
@@ -260,7 +260,7 @@ function courtCard(m){
 }
 function benchCard(m){
   const r=m.r,rest=m.rest==null?(m.tot>0?'':'未出場'):'休 '+fmt(m.rest);
-  return `<button class="pc lv${m.lv}${selIn.has(r.no)?' sel':''}" data-no="${r.no}" data-z="b"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span>${face(m.lv)}<span class="rest">${rest}</span></div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
+  return `<button class="pc lv${m.lv}${selIn.has(r.no)?' sel':''}" data-no="${r.no}" data-z="b"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span>${face(Math.max(m.qL,m.cL))}<span class="rest">${rest}</span></div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
 }
 function renderTL(D){
   const g=S.g,total=g.period>4?REG+(g.period-4)*OT:REG,rows=[];

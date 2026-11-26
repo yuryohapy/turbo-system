@@ -70,6 +70,7 @@ h2 span{font-weight:400;color:var(--mute);font-size:13px}
 .ph{display:flex;align-items:center;gap:6px}
 .num{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;font-size:20px;background:var(--maroon);color:#fff;border-radius:6px;padding:0 6px;line-height:1.35}
 .nm{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.face{width:24px;height:24px;flex:none}
 .chip{font-size:13px;border-radius:999px;padding:1px 8px;white-space:nowrap;border:1px solid var(--line);background:var(--card)}
 .chip.lv1{background:var(--yel);border-color:var(--yel);color:#1b1214}
 .chip.lv2{background:var(--red);border-color:var(--red);color:#fff}
@@ -202,6 +203,9 @@ const rosterMap=()=>{const m={};S.roster.forEach(r=>m[r.no]=r);return m};
 const label=n=>{const r=rosterMap()[n];return '#'+n+(r?' '+r.name:'')};
 const keyOf=a=>[...a].sort((x,y)=>x-y).join('-');
 function ov(iv,a,b){let s=0;for(const[x,y]of iv)s+=Math.max(0,Math.min(y,b)-Math.max(x,a));return s}
+const LOWCAP=600,LOWQ=240;
+const effAvg=r=>(r.avg||0)<=LOWCAP?LOWQ*4:r.avg;
+const isFixed=r=>(r.avg||0)<=LOWCAP;
 function lvl(v,t){if(!(t>0))return 0;if(v>t+60)return 2;if(v>=t-60)return 1;return 0}
 
 function derive(){
@@ -227,7 +231,7 @@ function derive(){
     const reg=ov(all,0,REG),ot=ov(all,REG,1e9),cur=ov(all,ps,pe);
     let stint=null;if(isOn){let st=p.lastIn;if(now>=HALF&&st<HALF)st=HALF;stint=Math.max(0,now-st)}
     const rest=!isOn&&p.lastOut!=null?Math.max(0,now-p.lastOut):null;
-    const qT=r.avg/4,cT=r.avg*Math.min(g.period,4)/4;
+    const ea=effAvg(r),qT=ea/4,cT=ea*Math.min(g.period,4)/4;
     const qL=g.period<=4?lvl(cur,qT):0,cL=lvl(reg,cT);
     const sL=stint==null?0:stint>=S.set.sr?2:stint>=S.set.sy?1:0;
     M[r.no]={r,on:isOn,all,reg,ot,tot:reg+ot,cur,qT,cT,qL,cL,sL,stint,rest,pm:p.pm,lv:isOn?Math.max(qL,cL,sL):cL};
@@ -235,6 +239,12 @@ function derive(){
   return{now,on,M,lu,log,us,th};
 }
 
+const FACE=['M6.2 12.2Q10 16.2 13.8 12.2','M6.4 13.6Q8.2 12.2 10 13.6T13.6 13.6','M6.2 15.2Q10 11.2 13.8 15.2'];
+const FTITLE=['問題なし','そろそろ注意','出すぎ','連続出場が長い'];
+function face(l){if(l===3)return `<svg class="face" viewBox="0 0 20 20" role="img" aria-label="${FTITLE[3]}"><title>${FTITLE[3]}</title><circle cx="10" cy="10" r="9" fill="#7cc46a" stroke="#3f8a33" stroke-width="1.2"/><path d="M5.6 7.4L7.8 8.6L5.6 9.8M14.4 7.4L12.2 8.6L14.4 9.8" fill="none" stroke="#1b1214" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="10" cy="13.4" rx="2.6" ry="2" fill="#1b1214"/><path d="M8.4 14.2Q10 13.4 11.6 14.2L12.2 18.6Q11.2 19.8 10 18.8Q8.8 19.8 7.8 18.6Z" fill="#b7e04a" stroke="#5f8f1e" stroke-width=".8"/></svg>`;
+  const ink=l===2?'#fff':'#1b1214',fill=l===2?'var(--red)':l===1?'var(--yel)':'#fff';
+  const brows=l===2?'<path d="M5.6 6.4L8.4 7.6M14.4 6.4L11.6 7.6" stroke="'+ink+'" stroke-width="1.4" stroke-linecap="round"/>':l===1?'<path d="M5.8 7.2L8.2 6.6M14.2 7.2L11.8 6.6" stroke="'+ink+'" stroke-width="1.2" stroke-linecap="round"/>':'';
+  return `<svg class="face" viewBox="0 0 20 20" role="img" aria-label="${FTITLE[l]}"><title>${FTITLE[l]}</title><circle cx="10" cy="10" r="9" fill="${fill}" stroke="${l===0?'#6b5c5f':fill}" stroke-width="1.2"/><circle cx="7.2" cy="9" r="1.2" fill="${ink}"/><circle cx="12.8" cy="9" r="1.2" fill="${ink}"/>${brows}<path d="${FACE[l]}" fill="none" stroke="${ink}" stroke-width="1.5" stroke-linecap="round"/></svg>`}
 function barRow(lab,v,t,l){
   if(!(t>0))return `<div class="mr"><span>${lab}</span><span class="na">目安なし</span><span class="v">${fmt(v)}</span></div>`;
   const mx=t+120,w=Math.min(100,v/mx*100),mk=t/mx*100;
@@ -245,11 +255,11 @@ function courtCard(m){
   const r=m.r,g=S.g;
   const st=`<span class="chip lv${m.sL}">連続 ${fmt(m.stint)}</span>`;
   const q=g.period<=4?barRow(pName(g.period),m.cur,m.qT,m.qL):`<div class="mr"><span>${pName(g.period)}</span><span class="na">延長は警告対象外</span><span class="v">${fmt(m.cur)}</span></div>`;
-  return `<button class="pc lv${m.lv}${selOut.has(r.no)?' sel':''}" data-no="${r.no}" data-z="c"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span>${st}</div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${q}${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
+  return `<button class="pc lv${m.lv}${selOut.has(r.no)?' sel':''}" data-no="${r.no}" data-z="c"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span>${face(m.stint!=null&&m.stint>=S.set.sy?3:m.lv)}${st}</div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${q}${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
 }
 function benchCard(m){
   const r=m.r,rest=m.rest==null?(m.tot>0?'':'未出場'):'休 '+fmt(m.rest);
-  return `<button class="pc lv${m.lv}${selIn.has(r.no)?' sel':''}" data-no="${r.no}" data-z="b"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span><span class="rest">${rest}</span></div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
+  return `<button class="pc lv${m.lv}${selIn.has(r.no)?' sel':''}" data-no="${r.no}" data-z="b"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span>${face(m.lv)}<span class="rest">${rest}</span></div><div class="big d">${fmt(m.tot)}${pmHtml(m.pm)}</div>${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
 }
 function renderTL(D){
   const g=S.g,total=g.period>4?REG+(g.period-4)*OT:REG,rows=[];
@@ -378,7 +388,7 @@ $('next').onclick=()=>{const g=S.g,warn=g.clock>0?`<p class="msg">まだ残り $
 function sheets(){
   const D=derive(),g=S.g,dr=S.roster.filter(r=>r.dr||D.M[r.no].tot>0),maxP=Math.max(4,g.period);
   const min=[['#','NAME','MIN','MIN(分)','PM','目安','目安との差']];
-  dr.forEach(r=>{const m=D.M[r.no];min.push([r.no,r.name,fmt(m.tot),+(m.tot/60).toFixed(2),m.pm,r.avg?fmt(r.avg):'',r.avg?+((m.reg-r.avg)/60).toFixed(2):''])});
+  dr.forEach(r=>{const m=D.M[r.no];min.push([r.no,r.name,fmt(m.tot),+(m.tot/60).toFixed(2),m.pm,fmt(effAvg(r))+(isFixed(r)?'（固定）':''),+((m.reg-effAvg(r))/60).toFixed(2)])});
   const qh=['#','NAME'];for(let p=1;p<=maxP;p++)qh.push(pName(p));qh.push('合計');const qs=[qh];
   dr.forEach(r=>{const m=D.M[r.no],row=[r.no,r.name];for(let p=1;p<=maxP;p++)row.push(fmt(ov(m.all,PSTART(p),PSTART(p)+PLEN(p))));row.push(fmt(m.tot));qs.push(row)});
   const nm=n=>{const r=rosterMap()[n];return r?r.name:'#'+n};
@@ -408,8 +418,8 @@ function settingsHtml(){const g=S.g;
   <div class="fr"><label>対戦相手<input id="sOpp" value="${esc(g.opp)}" placeholder="例：鹿屋体育大学"></label><label>日付<input id="sDate" type="date" value="${esc(g.date)}"></label></div>
   <div class="fr"><label>連続出場 黄（分）<input id="sY" type="number" step="0.5" min="1" value="${S.set.sy/60}" style="width:7em"></label><label>連続出場 赤（分）<input id="sR" type="number" step="0.5" min="1" value="${S.set.sr/60}" style="width:7em"></label></div>
   <h4>選手名簿と目安（1試合平均）</h4>
-  <p class="note">初期値＝BasketPlus公式、九産大・西南女学院大戦を除く6試合の出場試合平均を30秒単位に丸めた値。Seruは25:00に設定（2026-11-25指定）。Neoは1試合のみのため要確認。「登録」を外すとベンチに表示しません。</p>
-  <div class="scroll"><table class="rt"><thead><tr><th>登録</th><th>#</th><th>名前</th><th>平均（分:秒）</th><th>1Q目安</th><th></th></tr></thead><tbody id="rtb">${S.roster.map((r,i)=>`<tr data-i="${i}"><td><input type="checkbox" data-f="dr" ${r.dr?'checked':''} aria-label="登録"></td><td><input data-f="no" inputmode="numeric" value="${r.no}" style="width:4.5em"></td><td><input data-f="name" value="${esc(r.name)}"></td><td><input data-f="avg" value="${r.avg?fmt(r.avg):''}" placeholder="なし" style="width:6em"></td><td class="r">${r.avg?fmt(r.avg/4):'—'}</td><td><button class="btn" data-del="${i}" style="height:40px;padding:0 10px">削除</button></td></tr>`).join('')}</tbody></table></div>
+  <p class="note">初期値＝BasketPlus公式、九産大・西南女学院大戦を除く6試合の出場試合平均を30秒単位に丸めた値。Seruは25:00に設定（2026-11-25指定）。平均10:00以下（未入力を含む）の選手は、各Q4:00（1試合16:00）を目安に固定します。Neoは1試合のみのため要確認。「登録」を外すとベンチに表示しません。</p>
+  <div class="scroll"><table class="rt"><thead><tr><th>登録</th><th>#</th><th>名前</th><th>平均（分:秒）</th><th>1Q目安</th><th></th></tr></thead><tbody id="rtb">${S.roster.map((r,i)=>`<tr data-i="${i}"><td><input type="checkbox" data-f="dr" ${r.dr?'checked':''} aria-label="登録"></td><td><input data-f="no" inputmode="numeric" value="${r.no}" style="width:4.5em"></td><td><input data-f="name" value="${esc(r.name)}"></td><td><input data-f="avg" value="${r.avg?fmt(r.avg):''}" placeholder="なし" style="width:6em"></td><td class="r">${fmt(effAvg(r)/4)}${isFixed(r)?'（固定）':''}</td><td><button class="btn" data-del="${i}" style="height:40px;padding:0 10px">削除</button></td></tr>`).join('')}</tbody></table></div>
   <div class="dact" style="justify-content:flex-start"><button class="btn" id="sAdd">選手を追加</button></div>
   <p class="msg" id="sMsg"></p>
   <h4>Googleスプレッドシート連携（パソコンとiPadをつなぐ）</h4>
@@ -430,7 +440,7 @@ function openSettings(){openDlg(settingsHtml(),b=>{
     if(f==='dr')r.dr=e.target.checked;
     else if(f==='name')r.name=e.target.value.trim()||r.name;
     else if(f==='no'){const v=parseInt(e.target.value,10);if(isNaN(v)||S.roster.some((x,j)=>j!==i&&x.no===v)){msg('背番号が空か重複しています。');e.target.value=r.no;return}r.no=v}
-    else if(f==='avg'){const v=parseMS(e.target.value);if(v==null){msg('平均は「分:秒」で入力してください（例 25:30）。');e.target.value=r.avg?fmt(r.avg):'';return}r.avg=v;tr.cells[4].textContent=v?fmt(v/4):'—'}
+    else if(f==='avg'){const v=parseMS(e.target.value);if(v==null){msg('平均は「分:秒」で入力してください（例 25:30）。');e.target.value=r.avg?fmt(r.avg):'';return}r.avg=v;tr.cells[4].textContent=fmt(effAvg(r)/4)+(isFixed(r)?'（固定）':'')}
     msg('');commit()});
   b.querySelector('#rtb').addEventListener('click',e=>{const d=e.target.closest('[data-del]');if(!d)return;const i=+d.dataset.del,r=S.roster[i];
     if(derive().on.has(r.no)){msg('コート上の選手は削除できません。');return}S.roster.splice(i,1);commit();openSettings()});

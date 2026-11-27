@@ -523,7 +523,8 @@ function settingsHtml(){const g=S.g;
   <h4>Googleスプレッドシートに保存（バックアップ）</h4>
   <p class="note">試合が自動でスプレッドシートに保存されます（バックアップと、試合×選手のMINシート用）。記録に使う端末に、保存先のURLと合言葉を入れます。</p>
   <div class="fr"><label style="flex:1 1 320px">ウェブアプリのURL<input id="gUrl" value="${esc(CFG.url||'')}" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"></label><label>合言葉<input id="gKey" value="${esc(CFG.key||'')}" autocomplete="off" style="width:10em"></label></div>
-  <div class="dact" style="justify-content:flex-start"><button class="btn" id="gTest">接続テスト</button><button class="btn" id="gNow">今すぐ全試合を送信</button></div>
+  <div class="dact" style="justify-content:flex-start"><button class="btn" id="gTest">接続テスト</button><button class="btn" id="gNow">今すぐ全試合を送信</button><button class="btn" id="gPull">スプレッドシートから取り込む</button></div>
+  <p class="note">「取り込む」は、この端末にない試合（または新しい記録）だけを試合一覧に追加します。アイコンを削除したときや端末を替えたときの復元に使います。チームの名簿・目安は、試合に保存された名簿から作られます。</p>
   <p class="msg" id="gMsgEl"></p>
   <h4>試合</h4>
   <div class="dact" style="justify-content:flex-start"><button class="btn mar" id="sNew">新しい試合を始める</button>${db?'<button class="btn" id="sCloud">クラウドの試合を開く</button>':''}<button class="btn" id="sBak">記録をバックアップ保存</button><label class="btn" style="display:inline-grid;place-items:center;cursor:pointer">バックアップを読み込む<input type="file" id="sLoad" accept=".json,application/json" hidden></label><button class="btn" id="sDemo">サンプルを表示</button></div>
@@ -551,11 +552,12 @@ function openSettings(){openDlg(settingsHtml(),b=>{
   const cb=b.querySelector('#sCloud');if(cb)cb.onclick=()=>listCloud(b);
   b.querySelector('#sBak').onclick=()=>{const fn=`${fnTeam()}_交代記録_${S.g.date}_${(S.g.opp||'試合').replace(/[\\/:*?"<>|]/g,'')}.json`;try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);msg('保存しました：'+fn+'（別の端末で「バックアップを読み込む」から開けます）')}catch(e){msg('保存できませんでした。')}};
   b.querySelector('#sLoad').onchange=async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x||!x.g||!Array.isArray(x.roster)||!Array.isArray(x.g.events))throw 0;archiveCurrent();S=x;migrateS();S.g.running=false;undoStack=[];selOut.clear();selIn.clear();commit();dlg.close()}catch(err){msg('このファイルは読み込めません（交代記録のバックアップを選んでください）。')}};
-  b.querySelector('#sClose').onclick=()=>dlg.close();
+  b.querySelector('#sClose').onclick=()=>{dlg.close();if(!$('home').hidden)renderHome()};
   const gm=t=>b.querySelector('#gMsgEl').textContent=t;
   const rd=()=>{CFG.url=b.querySelector('#gUrl').value.trim();CFG.key=b.querySelector('#gKey').value.trim();saveCfg()};
   b.querySelector('#gUrl').onchange=()=>{rd();renderStatus()};b.querySelector('#gKey').onchange=()=>{rd();renderStatus()};
   b.querySelector('#gTest').onclick=async()=>{rd();if(!gOn()){gm('URLと合言葉を入力してください。');return}if(!/^https:\/\/script\.google\.com\//.test(CFG.url)){gm('URLは https://script.google.com/ で始まるものを入れてください。');return}gm('接続中…');try{await gCall({action:'ping'});gm('つながりました。');gMsg='スプレッドシート連携中';renderStatus()}catch(e){gm(e&&e.message==='key'?'合言葉が一致しません。スクリプトの KEY と同じにしてください。':'つながりませんでした。URL、デプロイ設定（アクセス：全員）、通信を確認してください。')}};
+  b.querySelector('#gPull').onclick=async()=>{rd();if(!gOn()){gm('先にURLと合言葉を入れてください。');return}gm('スプレッドシートを確認中…');gm(await gPull())};
   b.querySelector('#gNow').onclick=async()=>{rd();if(!gOn()){gm('先にURLと合言葉を入れてください。');return}loadHist().forEach(x=>{if(!GQ.includes(x.id))GQ.push(x.id)});if(!S.g.demo&&S.g.events.length&&!GQ.includes(S.g.id))GQ.push(S.g.id);saveQ();gm('送信中…');await gFlush();gm(GQ.length?gMsg:'すべて送信しました。')};
 })}
 function confirmNew(b){const box=b.querySelector('#sList');
@@ -623,7 +625,8 @@ function renderHome(){
   const sel=`<select class="tsel" id="hT">${TL.map(t=>`<option value="${esc(t)}"${t===homeT?' selected':''}>${esc(t)}</option>`).join('')}<option value=""${homeT===''?' selected':''}>大会なし（練習試合など）</option><option value="__all"${homeT==='__all'?' selected':''}>すべての試合</option></select>`;
   const seasonHtml=`<div class="hcard hwide"><div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:10px"><h3 style="margin:0">大会累計の出場時間</h3>${sel}<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">${ss.n?'<button class="btn" data-h="apply">平均を目安に反映</button>':''}<button class="btn" data-h="tman">大会の管理</button></span></div>${ss.n?`<p class="note">${ss.n}試合（${esc(ss.from)}〜${esc(ss.to)}）の集計。平均は出場した試合だけで割っています。進行中の試合は含みません。</p><div class="scroll"><table><thead><tr><th>#</th><th>選手</th><th class="r">試合</th><th class="r">合計</th><th class="r">平均</th><th class="r">今の目安</th><th class="r">+/-</th></tr></thead><tbody>${ss.rows.map(a=>{const r=rosterMap()[a.no],ea=r?effAvg(r):null,avg=a.sec/a.gp;return `<tr><td>${esc(a.no)}</td><td>${esc(a.name)}</td><td class="r">${a.gp}</td><td class="r">${fmt(a.sec)}</td><td class="r"><b>${fmt(avg)}</b></td><td class="r">${ea==null?'—':fmt(ea)+(isFixed(r)?'（固定）':'')}</td><td class="r">${a.pm>0?'+':''}${a.pm}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="note">この大会の保存された試合はまだありません。試合を保存すると、選手ごとの合計・平均出場時間が出ます。</p>'}</div>`;
   setTimeout(()=>{const s=$('hT');if(s)s.onchange=e=>{homeT=e.target.value;renderHome()}},0);
-  b.innerHTML=`<div>${resume}<div class="hcard"${resume?' style="margin-top:16px"':''}><h3>新しい試合</h3><p class="note">相手・日付・登録選手・スターターを決めてから試合画面に進みます。${canResume()?'途中の試合は「試合一覧」に保存されます。':''}</p><button class="btn ${resume?'':'mar '}hbtn" data-h="new">新しい試合の準備</button></div></div>${recent}${seasonHtml}`;
+  const warn=gOn()?'':`<div class="hcard hwide" style="border:2px solid var(--red);background:var(--redbg)"><h3 style="margin-bottom:6px">バックアップが未設定です</h3><p class="note" style="color:var(--ink)">この画面の記録はこの端末の中だけにあります。ホーム画面のアイコンを削除すると記録も消えます。設定でスプレッドシートのURLと合言葉を入れると、記録が自動で送られ、消えても取り込んで戻せます。</p><div class="dact" style="justify-content:flex-start"><button class="btn mar" data-h="bset">バックアップを設定する</button></div></div>`;
+  b.innerHTML=`${warn}<div>${resume}<div class="hcard"${resume?' style="margin-top:16px"':''}><h3>新しい試合</h3><p class="note">相手・日付・登録選手・スターターを決めてから試合画面に進みます。${canResume()?'途中の試合は「試合一覧」に保存されます。':''}</p><button class="btn ${resume?'':'mar '}hbtn" data-h="new">新しい試合の準備</button></div></div>${recent}${seasonHtml}`;
 }
 function renderSetup(b){
   const d=draft,reg=S.roster.filter(r=>d.dr.has(r.no));
@@ -659,11 +662,8 @@ $('home').addEventListener('click',async e=>{
   else if(a==='all'){hideHome();openHist()}
   else if(a==='tman'){openTMan()}
   else if(a==='apply'){openApply()}
-  else if(a==='pull'){syncNote='スプレッドシートを確認中…';renderHome();
-    try{const L=(await gCall({action:'list'})).games||[];const loc={};loadHist().forEach(x=>loc[x.id]=x);let n=0;
-      for(const c of L){const l=loc[c.id];if(!l||String(c.savedAt)>String(l.savedAt||'')){const x=(await gCall({action:'get',id:c.id})).game;if(x){ensureTeam(x);const h2=loadHist().filter(r=>r.id!==x.id);h2.unshift(x);saveHist(h2);n++}}}
-      syncNote=n?n+'試合を取り込みました。':'この端末はすでに最新です。'}catch(err){syncNote='取り込めませんでした（通信・設定を確認）。'}
-    renderHome()}
+  else if(a==='pull'){syncNote='スプレッドシートを確認中…';renderHome();syncNote=await gPull();renderHome()}
+  else if(a==='bset'){openSettings();setTimeout(()=>{const el=$('gUrl');if(el)el.scrollIntoView({block:'center'})},50)}
 });
 const r30=s=>Math.floor((s+15)/30)*30;
 function openApply(){
@@ -695,6 +695,11 @@ function openTMan(){
       if(bt.dataset.c!=='1'){bt.dataset.c='1';bt.textContent='本当に削除';msg(n?'「'+t+'」の'+n+'試合は「大会なし」になります（試合の記録は消えません）。もう一度押すと削除します。':'もう一度押すと「'+t+'」を削除します。');return}
       renameTourn(t,'');if(draft&&draft.tourn===t)draft.tourn='';openTMan();done()});
   })}
+async function gPull(){
+  try{const L=(await gCall({action:'list'})).games||[];const loc={};loadHist().forEach(x=>loc[x.id]=x);let n=0;
+    for(const c of L){const l=loc[c.id];if(c.id===S.g.id)continue;if(!l||String(c.savedAt)>String(l.savedAt||'')){const x=(await gCall({action:'get',id:c.id})).game;if(x&&Array.isArray(x.events)){ensureTeam(x);const h2=loadHist().filter(r=>r.id!==x.id);h2.unshift(x);saveHist(h2);n++}}}
+    saveLocal();if(!$('home').hidden)renderHome();return n?n+'試合を取り込みました（試合一覧・最近の試合に出ます）。':'取り込む試合はありません（この端末はすでに最新です）。'}
+  catch(err){return err&&err.message==='key'?'合言葉が一致しません。':'取り込めませんでした（通信・設定を確認）。'}}
 function changeTeam(tid){if(tid===S.tid)return;if(!S.g.demo&&S.g.events.length)archiveCurrent();switchTeam(tid);S.g=newGame('');undoStack=[];selOut.clear();selIn.clear();homeT=null;homeView='main';commit();renderHome()}
 $('hTeam').onchange=e=>changeTeam(e.target.value);
 function openTeamMan(){
@@ -719,6 +724,7 @@ $('set').onclick=openSettings;
 $('demoNew').onclick=()=>{showHome();$('home').querySelector('[data-h=new]').click()};
 document.addEventListener('mouseup',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.closest('dialog'))b.blur()});
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&!/claude\.ai|claudeusercontent/.test(location.host)){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{})}catch(e){}
 render();renderStatus();showHome();setTimeout(gFlush,1500);
 }
 </script>

@@ -604,10 +604,18 @@ function saveTL(a){const other=loadTLall().filter(x=>teamOf(x)!==S.tid);a.forEac
 function tGames(t){return loadHist().filter(x=>mine(x)&&String(x.tourn||'')===t).length+(!S.g.demo&&S.g.tourn===t&&!loadHist().some(x=>x.id===S.g.id)?1:0)}
 function renameTourn(a,b){const H=loadHist();let ch=false;H.forEach(x=>{if(mine(x)&&String(x.tourn||'')===a){x.tourn=b;x.savedAt=new Date().toISOString();ch=true;markDirty(x.id)}});if(ch)saveHist(H);
   if(mine(S.g)&&S.g.tourn===a){S.g.tourn=b;saveLocal();markDirty(S.g.id)}
-  const L=loadTL().filter(x=>x.name!==a&&x.name!==b);if(b)L.unshift({name:b,added:today()});saveTL(L);if(homeT===a)homeT=b||''}
+  const L=loadTL().filter(x=>x.name!==a&&x.name!==b);if(b)L.unshift({name:b,added:today()});saveTL(L);if(homeT===a)homeT=b||'';{const o=loadSel();if(o.full){o.full=o.full.map(x=>x===a?(b||''):x);saveSel(o)}}}
 function tournaments(){const m={};const add=(t,d)=>{t=String(t||'').trim();if(!t)return;if(!m[t]||String(d)>m[t])m[t]=String(d||'')};loadTL().forEach(x=>add(x.name,x.added));loadHist().filter(mine).forEach(x=>add(x.tourn,x.date));if(!S.g.demo&&mine(S.g))add(S.g.tourn,S.g.date);return Object.keys(m).sort((a,b)=>m[b].localeCompare(m[a])||a.localeCompare(b))}
 let homeT=null;
-function season(t){const H=loadHist().filter(x=>mine(x)&&Array.isArray(x.min)&&!x.demo&&(t==='__all'||String(x.tourn||'')===t));const A={};let from='',to='';
+const LSEL='lk-subs-sel-v1';
+function selGames(){return loadHist().filter(x=>mine(x)&&Array.isArray(x.min)&&!x.demo)}
+function loadSelAll(){try{const o=JSON.parse(localStorage.getItem(LSEL)||'{}');return o&&typeof o==='object'?o:{}}catch(e){return{}}}
+function loadSel(){const o=loadSelAll()[S.tid];return o&&Array.isArray(o.ids)?o:{all:true,ids:[],full:[]}}
+function saveSel(o){const a=loadSelAll();a[S.tid]=o;try{localStorage.setItem(LSEL,JSON.stringify(a))}catch(e){}}
+function selectedIds(){const o=loadSel(),G=selGames(),ids=new Set(o.ids),full=new Set(o.full||[]);return new Set(G.filter(x=>o.all||ids.has(x.id)||full.has(String(x.tourn||''))).map(x=>x.id))}
+function storeSel(set){const G=selGames(),by={};G.forEach(x=>{const t=String(x.tourn||'');(by[t]=by[t]||[]).push(x)});
+  const full=Object.keys(by).filter(t=>by[t].every(x=>set.has(x.id)));const all=G.length>0&&G.every(x=>set.has(x.id));saveSel({all,ids:[...set].filter(id=>G.some(x=>x.id===id)),full})}
+function season(){const sel=selectedIds();const H=selGames().filter(x=>sel.has(x.id));const A={};let from='',to='';
   for(const x of H){const d=String(x.date||'');if(d&&(!from||d<from))from=d;if(d>to)to=d;for(const m of x.min){const a=A[m.no]||(A[m.no]={no:m.no,name:m.name,gp:0,sec:0,pm:0});a.gp++;a.sec+=Math.round((+m.dec||0)*60);a.pm+=(+m.pm||0);a.name=m.name}}
   return{n:H.length,from,to,rows:Object.values(A).sort((p,q)=>q.sec/q.gp-p.sec/p.gp)}}
 function recentGames(){return loadHist().filter(x=>!x.demo&&mine(x)).sort((x,y)=>String(y.date||'').localeCompare(String(x.date||''))||String(y.savedAt||'').localeCompare(String(x.savedAt||''))).slice(0,6)}
@@ -620,11 +628,11 @@ function renderHome(){
   const resume=D?`<div class="hcard resume"><h3>続きから再開</h3><div class="rs"><span><span class="na">vs</span> <strong>${esc(g.opp||'相手未入力')}</strong> <span class="na">${esc(g.date)}${g.tourn?'　'+esc(g.tourn):''}</span></span><b>${D.us} − ${D.th}</b><span>${pName(g.period)} 残り ${fmtC(g.clock)}${g.running?'（時計作動中）':''}</span></div><button class="btn mar hbtn" data-h="resume">試合画面に戻る</button></div>`:'';
   const rec=recentGames();
   const recent=`<div class="hcard"><h3>最近の試合</h3>${rec.length?`<div class="rlist">${rec.map(x=>`<button class="rrow" data-hopen="${esc(x.id)}"><span class="d">${esc(String(x.date||'').slice(5))}</span><span class="o">${esc(x.opp||'—')}${x.tourn?`<span class="rt">${esc(x.tourn)}</span>`:''}</span><span class="s">${esc(x.us)}-${esc(x.th)}</span><span class="st">${x.final?'終了':esc(pName(+x.period||1))}</span></button>`).join('')}</div>`:'<p class="note">まだ保存された試合はありません。</p>'}<div class="dact" style="justify-content:flex-start"><button class="btn" data-h="all">すべての試合</button></div><p class="msg">${esc(syncNote)}</p></div>`;
-  const TL=tournaments();if(homeT===null||(homeT!=='__all'&&homeT!==''&&!TL.includes(homeT)))homeT=TL.length?TL[0]:'__all';
-  const ss=season(homeT);
-  const sel=`<select class="tsel" id="hT">${TL.map(t=>`<option value="${esc(t)}"${t===homeT?' selected':''}>${esc(t)}</option>`).join('')}<option value=""${homeT===''?' selected':''}>大会なし（練習試合など）</option><option value="__all"${homeT==='__all'?' selected':''}>すべての試合</option></select>`;
-  const seasonHtml=`<div class="hcard hwide"><div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:10px"><h3 style="margin:0">大会累計の出場時間</h3>${sel}<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">${ss.n?'<button class="btn" data-h="apply">平均を目安に反映</button>':''}<button class="btn" data-h="tman">大会の管理</button></span></div>${ss.n?`<p class="note">${ss.n}試合（${esc(ss.from)}〜${esc(ss.to)}）の集計。平均は出場した試合だけで割っています。進行中の試合は含みません。</p><div class="scroll"><table><thead><tr><th>#</th><th>選手</th><th class="r">試合</th><th class="r">合計</th><th class="r">平均</th><th class="r">今の目安</th><th class="r">+/-</th></tr></thead><tbody>${ss.rows.map(a=>{const r=rosterMap()[a.no],ea=r?effAvg(r):null,avg=a.sec/a.gp;return `<tr><td>${esc(a.no)}</td><td>${esc(a.name)}</td><td class="r">${a.gp}</td><td class="r">${fmt(a.sec)}</td><td class="r"><b>${fmt(avg)}</b></td><td class="r">${ea==null?'—':fmt(ea)+(isFixed(r)?'（固定）':'')}</td><td class="r">${a.pm>0?'+':''}${a.pm}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="note">この大会の保存された試合はまだありません。試合を保存すると、選手ごとの合計・平均出場時間が出ます。</p>'}</div>`;
-  setTimeout(()=>{const s=$('hT');if(s)s.onchange=e=>{homeT=e.target.value;renderHome()}},0);
+  const ss=season(),G=selGames(),selSet=selectedIds();
+  const byT={};G.forEach(x=>{const t=String(x.tourn||'');(byT[t]=byT[t]||[0,0]);byT[t][1]++;if(selSet.has(x.id))byT[t][0]++});
+  const selSum=G.length?Object.keys(byT).filter(t=>byT[t][0]).map(t=>esc(t||'大会なし')+' '+byT[t][0]+'/'+byT[t][1]).join('、'):'';
+  const sel=`<button class="btn" data-h="pick">試合を選ぶ（${selSet.size}/${G.length}）</button>`;
+  const seasonHtml=`<div class="hcard hwide"><div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:10px"><h3 style="margin:0">累計出場時間</h3>${sel}<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">${ss.n?'<button class="btn" data-h="apply">平均を目安に反映</button>':''}<button class="btn" data-h="tman">大会の管理</button></span></div>${ss.n?`<p class="note">選択中：${selSum}。${ss.n}試合（${esc(ss.from)}〜${esc(ss.to)}）の集計。平均は出場した試合だけで割っています。進行中の試合は含みません。</p><div class="scroll"><table><thead><tr><th>#</th><th>選手</th><th class="r">試合</th><th class="r">合計</th><th class="r">平均</th><th class="r">今の目安</th><th class="r">+/-</th></tr></thead><tbody>${ss.rows.map(a=>{const r=rosterMap()[a.no],ea=r?effAvg(r):null,avg=a.sec/a.gp;return `<tr><td>${esc(a.no)}</td><td>${esc(a.name)}</td><td class="r">${a.gp}</td><td class="r">${fmt(a.sec)}</td><td class="r"><b>${fmt(avg)}</b></td><td class="r">${ea==null?'—':fmt(ea)+(isFixed(r)?'（固定）':'')}</td><td class="r">${a.pm>0?'+':''}${a.pm}</td></tr>`}).join('')}</tbody></table></div>`:(G.length?'<p class="note">試合が選ばれていません。「試合を選ぶ」から選んでください。</p>':'<p class="note">保存された試合はまだありません。試合を保存すると、選手ごとの合計・平均出場時間が出ます。</p>')}</div>`;
   const warn=gOn()?'':`<div class="hcard hwide" style="border:2px solid var(--red);background:var(--redbg)"><h3 style="margin-bottom:6px">バックアップが未設定です</h3><p class="note" style="color:var(--ink)">この画面の記録はこの端末の中だけにあります。ホーム画面のアイコンを削除すると記録も消えます。設定でスプレッドシートのURLと合言葉を入れると、記録が自動で送られ、消えても取り込んで戻せます。</p><div class="dact" style="justify-content:flex-start"><button class="btn mar" data-h="bset">バックアップを設定する</button></div></div>`;
   b.innerHTML=`${warn}<div>${resume}<div class="hcard"${resume?' style="margin-top:16px"':''}><h3>新しい試合</h3><p class="note">相手・日付・登録選手・スターターを決めてから試合画面に進みます。${canResume()?'途中の試合は「試合一覧」に保存されます。':''}</p><button class="btn ${resume?'':'mar '}hbtn" data-h="new">新しい試合の準備</button></div></div>${recent}${seasonHtml}`;
 }
@@ -662,12 +670,13 @@ $('home').addEventListener('click',async e=>{
   else if(a==='all'){hideHome();openHist()}
   else if(a==='tman'){openTMan()}
   else if(a==='apply'){openApply()}
+  else if(a==='pick'){openPick()}
   else if(a==='pull'){syncNote='スプレッドシートを確認中…';renderHome();syncNote=await gPull();renderHome()}
   else if(a==='bset'){openSettings();setTimeout(()=>{const el=$('gUrl');if(el)el.scrollIntoView({block:'center'})},50)}
 });
 const r30=s=>Math.floor((s+15)/30)*30;
 function openApply(){
-  const ss=season(homeT),label=homeT==='__all'?'すべての試合':homeT===''?'大会なし':homeT;
+  const ss=season(),label='選択した試合';
   const rows=ss.rows.filter(a=>rosterMap()[a.no]);
   openDlg(`<h3>平均を目安に反映</h3><p class="note">「${esc(label)}」の${ss.n}試合の平均出場時間を、30秒単位に丸めて名簿の目安（1試合平均）にします。反映する選手にチェックを入れてください。平均${fmt(lowCap())}以下の選手は、反映後も1Q${fmt(lowQ())}の固定目安になります。</p>
   <div class="scroll"><table><thead><tr><th></th><th>#</th><th>選手</th><th class="r">試合</th><th class="r">大会平均</th><th class="r">今の目安</th><th class="r">反映後</th></tr></thead><tbody>${rows.map((a,i)=>{const r=rosterMap()[a.no],avg=a.sec/a.gp,nv=r30(avg);return `<tr><td><input type="checkbox" data-ap="${i}" ${nv!==r.avg?'checked':''} aria-label="反映"></td><td>${esc(a.no)}</td><td>${esc(r.name)}</td><td class="r">${a.gp}</td><td class="r">${fmt(avg)}</td><td class="r">${r.avg?fmt(r.avg):'—'}</td><td class="r"><b>${fmt(nv)}</b></td></tr>`}).join('')}</tbody></table></div>
@@ -676,6 +685,24 @@ function openApply(){
     b.querySelector('#apX').onclick=()=>dlg.close();
     b.querySelector('#apOk').onclick=()=>{let n=0;b.querySelectorAll('[data-ap]').forEach(cb=>{if(!cb.checked)return;const a=rows[+cb.dataset.ap],r=rosterMap()[a.no];r.avg=r30(a.sec/a.gp);n++});commit();dlg.close();renderHome();alertMsg(n+'人の目安を更新しました。')};
   })}
+function openPick(){
+  const G=selGames(),cur=selectedIds(),TL=tournaments();
+  const keys=[...TL.filter(t=>G.some(x=>String(x.tourn||'')===t)),...(G.some(x=>!x.tourn)?['']:[])];
+  const grp=keys.map((t,gi)=>{const L=G.filter(x=>String(x.tourn||'')===t).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    return `<div style="margin-top:12px;border:1px solid var(--line);border-radius:10px"><label style="display:flex;gap:10px;align-items:center;padding:8px 10px;background:var(--bg);border-radius:10px 10px 0 0;font-weight:700;cursor:pointer"><input type="checkbox" data-pg="${gi}">${esc(t||'大会なし（練習試合など）')}<span class="na" style="margin-left:auto" data-pc="${gi}"></span></label>${L.map(x=>`<label style="display:flex;gap:10px;align-items:center;padding:6px 10px;border-top:1px solid var(--line);cursor:pointer"><input type="checkbox" data-pid="${esc(x.id)}" data-pgi="${gi}" ${cur.has(x.id)?'checked':''}><span class="d" style="white-space:nowrap">${esc(x.date)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.opp||'—')}</span><span class="d">${esc(x.us)}-${esc(x.th)}</span></label>`).join('')}</div>`}).join('');
+  openDlg(`<h3>累計に入れる試合を選ぶ</h3><p class="note">大会名のチェックで、その大会の試合をまとめて選択／解除できます。大会をまるごと選んでおくと、あとでその大会に保存された試合も自動で入ります。</p>
+  <div class="dact" style="justify-content:flex-start;margin-top:6px"><button class="btn" id="pAll">すべて選択</button><button class="btn" id="pNone">すべて解除</button><span class="na" id="pCnt" style="align-self:center"></span></div>
+  ${G.length?grp:'<p class="note">保存された試合はまだありません。</p>'}
+  <div class="dact"><button class="btn" id="pX">やめる</button><button class="btn mar" id="pOk">この試合で集計</button></div>`,b=>{
+    const games=[...b.querySelectorAll('[data-pid]')];
+    const upd=()=>{keys.forEach((t,gi)=>{const L=games.filter(c=>c.dataset.pgi==String(gi)),n=L.filter(c=>c.checked).length,h=b.querySelector(`[data-pg="${gi}"]`);h.checked=n===L.length&&n>0;h.indeterminate=n>0&&n<L.length;b.querySelector(`[data-pc="${gi}"]`).textContent=n+'/'+L.length});b.querySelector('#pCnt').textContent=games.filter(c=>c.checked).length+'/'+games.length+'試合'};
+    b.querySelectorAll('[data-pg]').forEach(h=>h.onchange=()=>{games.filter(c=>c.dataset.pgi===h.dataset.pg).forEach(c=>c.checked=h.checked);upd()});
+    games.forEach(c=>c.onchange=upd);
+    b.querySelector('#pAll').onclick=()=>{games.forEach(c=>c.checked=true);upd()};
+    b.querySelector('#pNone').onclick=()=>{games.forEach(c=>c.checked=false);upd()};
+    b.querySelector('#pX').onclick=()=>dlg.close();
+    b.querySelector('#pOk').onclick=()=>{storeSel(new Set(games.filter(c=>c.checked).map(c=>c.dataset.pid)));dlg.close();renderHome()};
+    upd()})}
 function openTMan(){
   const TL=tournaments();
   openDlg(`<h3>大会の管理</h3><p class="note">大会を先に登録しておくと、新しい試合の準備で選べます。名前を変えると、その大会の試合すべての大会名も変わります。</p>

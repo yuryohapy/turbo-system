@@ -409,21 +409,19 @@ async function gFlush(){
 window.addEventListener('online',()=>gFlush());
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')gFlush()});
 function saveLocal(){syncTeam();try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
-let db=null,cloudMsg='保存先を確認中',cTimer=null,cBusy=false,cDirty=false;
 const hhmm=()=>{const d=new Date();return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')};
-function renderStatus(){$('cloud').textContent=(S.g.demo?'サンプル表示中。':'この端末に保存済み。')+(gOn()?(gMsg||'スプレッドシート連携中'):cloudMsg)}
-function scheduleCloud(){if(!db||S.g.demo)return;cDirty=true;clearTimeout(cTimer);cTimer=setTimeout(flushCloud,1500)}
-async function flushCloud(){
-  if(!db||cBusy||!cDirty)return;cBusy=true;cDirty=false;
-  const D=derive(),g=S.g;
-  const payload={opp:g.opp,date:g.date,period:g.period,clock:Math.round(g.clock),final:g.final,events:g.events,roster:S.roster,set:S.set,us:D.us,th:D.th,savedAt:new Date().toISOString()};
-  try{await db.doc('games/'+g.id).set(payload);cloudMsg='クラウド保存 '+hhmm()}
-  catch(e){cDirty=true;cloudMsg=e&&e.code==='quota_exceeded'?'クラウドの容量上限。古い試合の削除が必要です':'クラウド未保存（通信回復後に再保存）'}
-  cBusy=false;renderStatus();
-}
-window.addEventListener('online',()=>{if(cDirty)flushCloud()});
-(async()=>{let d=null;try{d=window.claude&&window.claude.use?await window.claude.use('db'):null}catch(e){d=null}db=d;cloudMsg=db?'クラウド保存 待機中':'スプレッドシートへの保存は設定から';renderStatus();if(db&&!S.g.demo&&S.g.events.length){cDirty=true;flushCloud()}})();
-function commit(){saveLocal();scheduleCloud();if(!S.g.demo&&S.g.events.length)markDirty(S.g.id);render();renderStatus()}
+function renderStatus(){$('cloud').textContent=(S.g.demo?'サンプル表示中。':'この端末に保存済み。')+(gOn()?(gMsg||'スプレッドシート連携中'):'スプレッドシート未設定（設定から）')+wakeNote()}
+let wakeLk=null,wakeSt='';
+const wakeWant=()=>document.visibilityState==='visible'&&$('home').hidden&&!S.g.demo&&!S.g.final;
+async function wakeSync(){
+  if(!('wakeLock' in navigator)){wakeSt='na';return}
+  if(wakeWant()){if(!wakeLk){try{wakeLk=await navigator.wakeLock.request('screen');wakeSt='on';wakeLk.addEventListener('release',()=>{wakeLk=null;if(wakeSt==='on')wakeSt='';renderStatus()})}catch(e){wakeSt='err'}}}
+  else if(wakeLk){const l=wakeLk;wakeLk=null;wakeSt='';try{await l.release()}catch(e){}}
+  renderStatus()}
+function wakeNote(){if(S.g.demo||S.g.final)return'';return wakeSt==='on'?'　画面は自動で消えません':wakeSt==='na'||wakeSt==='err'?'　※この端末は画面の自動ロックを止められません（iPadの設定で自動ロックを「しない」に）':''}
+document.addEventListener('visibilitychange',()=>{wakeSync()});
+document.addEventListener('pointerdown',()=>{if(!wakeLk&&wakeSt!=='na'&&wakeWant())wakeSync()},true);
+function commit(){saveLocal();if(!S.g.demo&&S.g.events.length)markDirty(S.g.id);render();renderStatus()}
 function pushUndo(kind){undoStack.push({kind,ev:JSON.stringify(S.g.events),p:S.g.period,c:S.g.clock,f:S.g.final});if(undoStack.length>100)undoStack.shift()}
 function addEvent(e){const g=S.g;e.gt=gameTime();e.p=g.period;e.cl=g.clock;g.events.push(e)}
 
@@ -453,7 +451,7 @@ document.addEventListener('keydown',e=>{if(!$('home').hidden||$('dlg').open||/IN
 const dlg=$('dlg');
 function openDlg(html,bind){$('dlgBody').innerHTML=html;bind&&bind($('dlgBody'));if(!dlg.open)dlg.showModal()}
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
-function advance(to,kind){const g=S.g;pushUndo(kind);g.running=false;if(kind==='final'){g.final=true}else{g.period=to;g.clock=PLEN(to)}selOut.clear();selIn.clear();commit();if(kind==='final')archiveCurrent();dlg.close()}
+function advance(to,kind){const g=S.g;pushUndo(kind);g.running=false;if(kind==='final'){g.final=true}else{g.period=to;g.clock=PLEN(to)}selOut.clear();selIn.clear();commit();if(kind==='final'){archiveCurrent();wakeSync()}dlg.close()}
 $('time').onclick=()=>{const g=S.g;const s=Math.ceil(g.clock);
   openDlg(`<h3>残り時間の修正（${pName(g.period)}）</h3><p class="note">時計が遅れたときや、交代時に残り時間を入力する運用のときに使います。止めた状態で修正してから交代を確定してください。</p><div class="fr"><label>分<input id="cm" type="number" inputmode="numeric" min="0" max="10" value="${Math.floor(s/60)}"></label><label>秒<input id="cs" type="number" inputmode="numeric" min="0" max="59" value="${s%60}"></label></div><div class="dact"><button class="btn" id="cx">キャンセル</button><button class="btn pri" id="ok">反映</button></div>`,b=>{
   b.querySelector('#cx').onclick=()=>dlg.close();
@@ -527,7 +525,7 @@ function settingsHtml(){const g=S.g;
   <p class="note">「取り込む」は、この端末にない試合（または新しい記録）だけを試合一覧に追加します。アイコンを削除したときや端末を替えたときの復元に使います。チームの名簿・目安は、試合に保存された名簿から作られます。</p>
   <p class="msg" id="gMsgEl"></p>
   <h4>試合</h4>
-  <div class="dact" style="justify-content:flex-start"><button class="btn mar" id="sNew">新しい試合を始める</button>${db?'<button class="btn" id="sCloud">クラウドの試合を開く</button>':''}<button class="btn" id="sBak">記録をバックアップ保存</button><label class="btn" style="display:inline-grid;place-items:center;cursor:pointer">バックアップを読み込む<input type="file" id="sLoad" accept=".json,application/json" hidden></label><button class="btn" id="sDemo">サンプルを表示</button></div>
+  <div class="dact" style="justify-content:flex-start"><button class="btn mar" id="sNew">新しい試合を始める</button><button class="btn" id="sBak">記録をバックアップ保存</button><label class="btn" style="display:inline-grid;place-items:center;cursor:pointer">バックアップを読み込む<input type="file" id="sLoad" accept=".json,application/json" hidden></label><button class="btn" id="sDemo">サンプルを表示</button></div>
   <div id="sList"></div>
   <div class="dact"><button class="btn pri" id="sClose">閉じる</button></div>`}
 function openSettings(){openDlg(settingsHtml(),b=>{
@@ -549,7 +547,6 @@ function openSettings(){openDlg(settingsHtml(),b=>{
   b.querySelector('#sAdd').onclick=()=>{let n=0;while(S.roster.some(r=>r.no===n))n++;S.roster.push({no:n,name:'新しい選手',avg:0,dr:true});commit();openSettings()};
   b.querySelector('#sNew').onclick=()=>confirmNew(b);
   b.querySelector('#sDemo').onclick=()=>{archiveCurrent();syncTeam();{const keep={teams:S.teams,tid:S.tid};S=Object.assign(demoState(),keep);migrateS()}S.g.demo=true;undoStack=[];selOut.clear();selIn.clear();commit();dlg.close()};
-  const cb=b.querySelector('#sCloud');if(cb)cb.onclick=()=>listCloud(b);
   b.querySelector('#sBak').onclick=()=>{const fn=`${fnTeam()}_交代記録_${S.g.date}_${(S.g.opp||'試合').replace(/[\\/:*?"<>|]/g,'')}.json`;try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);msg('保存しました：'+fn+'（別の端末で「バックアップを読み込む」から開けます）')}catch(e){msg('保存できませんでした。')}};
   b.querySelector('#sLoad').onchange=async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x||!x.g||!Array.isArray(x.roster)||!Array.isArray(x.g.events))throw 0;archiveCurrent();S=x;migrateS();S.g.running=false;undoStack=[];selOut.clear();selIn.clear();commit();dlg.close()}catch(err){msg('このファイルは読み込めません（交代記録のバックアップを選んでください）。')}};
   b.querySelector('#sClose').onclick=()=>{dlg.close();if(!$('home').hidden)renderHome()};
@@ -564,18 +561,6 @@ function confirmNew(b){const box=b.querySelector('#sList');
   box.innerHTML=`<p class="msg">新しい試合を始めます。${S.g.demo?'':'今の試合は「試合一覧」に保存され、あとから開けます。'}名簿と目安は引き継ぎます。</p><div class="dact" style="justify-content:flex-start"><button class="btn mar" id="nOk">始める</button></div>`;
   box.querySelector('#nOk').onclick=()=>{startNew(S.g.demo?'':S.g.opp);dlg.close()}}
 function startNew(opp){archiveCurrent();S.g=newGame('');undoStack=[];selOut.clear();selIn.clear();commit();openSettings()}
-async function listCloud(b){const box=b.querySelector('#sList');
-  if(!db){box.innerHTML='<p class="msg">この画面ではクラウドに接続できません。</p>';return}
-  box.innerHTML='<p class="note">読み込み中…</p>';
-  const t=setTimeout(()=>{box.innerHTML='<p class="msg">クラウドに接続できません（通信を確認）。</p>'},10000);
-  try{const snap=await db.collection('games').orderBy('savedAt','desc').limit(30).get();clearTimeout(t);
-    if(snap.empty){box.innerHTML='<p class="note">保存された試合はまだありません。</p>';return}
-    box.innerHTML=`<div class="scroll"><table><thead><tr><th>日付</th><th>相手</th><th class="r">スコア</th><th>状態</th><th></th></tr></thead><tbody>${snap.docs.map(d=>{const x=d.data()||{};return `<tr><td>${esc(x.date)}</td><td>${esc(x.opp||'—')}</td><td class="r">${esc(x.us)}-${esc(x.th)}</td><td>${x.final?'終了':esc(pName(+x.period||1))}</td><td><button class="btn" data-id="${esc(d.id)}" style="height:40px">開く</button></td></tr>`}).join('')}</tbody></table></div>`;
-    box.querySelectorAll('[data-id]').forEach(bt=>bt.onclick=()=>{const d=snap.docs.find(x=>x.id===bt.dataset.id),x=d.data();archiveCurrent();
-      S.g={id:d.id,opp:String(x.opp||''),date:String(x.date||today()),period:+x.period||1,clock:+x.clock||0,running:false,final:!!x.final,demo:false,events:Array.isArray(x.events)?JSON.parse(JSON.stringify(x.events)):[]};
-      if(Array.isArray(x.roster)&&x.roster.length)S.roster=JSON.parse(JSON.stringify(x.roster));if(x.set)S.set=Object.assign({},x.set);
-      undoStack=[];selOut.clear();selIn.clear();saveLocal();render();renderStatus();dlg.close()})}
-  catch(e){clearTimeout(t);box.innerHTML='<p class="msg">読み込めませんでした（'+esc(e&&e.code||'不明')+'）。</p>'}}
 function openHist(){
   const cur=S.g,a=loadHist().filter(mine).sort((x,y)=>String(y.date||'').localeCompare(String(x.date||''))||String(y.savedAt||'').localeCompare(String(x.savedAt||'')));
   openDlg(`<h3>試合一覧</h3><p class="note">「新しい試合を始める」を押したときと試合終了のときに自動で保存されます。保存先はこの端末の中です。</p>${a.length?`<div class="scroll"><table><thead><tr><th>日付</th><th>相手</th><th class="r">スコア</th><th>状態</th><th></th></tr></thead><tbody>${a.map(x=>`<tr${x.id===cur.id?' style="font-weight:700"':''}><td style="white-space:nowrap">${esc(x.date)}</td><td>${esc(x.opp||'—')}${x.id===cur.id?'（表示中）':''}${x.tourn?`<br><span class="na">${esc(x.tourn)}</span>`:''}</td><td class="r">${esc(x.us)}-${esc(x.th)}</td><td>${x.final?'終了':esc(pName(+x.period||1))}</td><td style="white-space:nowrap"><button class="btn" data-open="${esc(x.id)}" style="height:40px">開く</button> <button class="btn" data-hdel="${esc(x.id)}" style="height:40px">削除</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="note">まだ保存された試合はありません。</p>'}<p class="msg" id="hMsg"></p><div class="dact"><button class="btn pri" id="hClose">閉じる</button></div>`,b=>{
@@ -595,8 +580,8 @@ let homeView='main',draft=null,syncNote='';
 try{const l=document.querySelector('link[rel="apple-touch-icon"]');if(l)$('hLogo').src=l.href}catch(e){}
 const canResume=()=>!S.g.demo&&S.g.events.length>0&&!S.g.final&&teamOf(S.g)===S.tid;
 const mine=x=>teamOf(x)===S.tid;
-function showHome(){homeView='main';selOut.clear();selIn.clear();if(dlg.open)dlg.close();$('home').hidden=false;document.body.style.overflow='hidden';renderHome();$('home').scrollTop=0}
-function hideHome(){$('home').hidden=true;document.body.style.overflow='';render();renderStatus()}
+function showHome(){setTimeout(wakeSync,0);homeView='main';selOut.clear();selIn.clear();if(dlg.open)dlg.close();$('home').hidden=false;document.body.style.overflow='hidden';renderHome();$('home').scrollTop=0}
+function hideHome(){$('home').hidden=true;document.body.style.overflow='';render();renderStatus();wakeSync()}
 const LTN='lk-subs-tourn-v1';
 function loadTLall(){try{const a=JSON.parse(localStorage.getItem(LTN)||'[]');return Array.isArray(a)?a.filter(x=>x&&x.name):[]}catch(e){return[]}}
 function loadTL(){return loadTLall().filter(x=>teamOf(x)===S.tid)}
@@ -671,7 +656,6 @@ $('home').addEventListener('click',async e=>{
   else if(a==='tman'){openTMan()}
   else if(a==='apply'){openApply()}
   else if(a==='pick'){openPick()}
-  else if(a==='pull'){syncNote='スプレッドシートを確認中…';renderHome();syncNote=await gPull();renderHome()}
   else if(a==='bset'){openSettings();setTimeout(()=>{const el=$('gUrl');if(el)el.scrollIntoView({block:'center'})},50)}
 });
 const r30=s=>Math.floor((s+15)/30)*30;

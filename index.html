@@ -41,8 +41,8 @@ button{font:inherit;color:inherit}
 .team{display:flex;align-items:center;gap:6px}
 .team .lab{font-size:13px;opacity:.85;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc{font-size:44px;font-weight:700;line-height:1;min-width:1.6em;text-align:center}
-.pb{display:flex;gap:4px}
-.pb button{min-width:40px;height:40px;border-radius:8px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;font-weight:700;cursor:pointer}
+.pb{display:flex;gap:6px}
+.pb button{min-width:54px;height:54px;font-size:19px;border-radius:10px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;font-weight:700;cursor:pointer}
 .pb button:active{background:rgba(255,255,255,.3)}
 .clock{display:flex;align-items:center;gap:8px;background:#1b0b0f;border-radius:12px;padding:4px 6px 4px 14px}
 .per{font-size:22px;font-weight:600;color:#ffcf5a}
@@ -105,6 +105,35 @@ h2 span{font-weight:400;color:var(--mute);font-size:13px}
 @media(max-width:700px){.sugg{grid-template-columns:minmax(0,1fr)}}
 .tl{display:grid;gap:3px}
 tr.short td{color:var(--mute)}
+.sc.flash{animation:scfl .6s ease-out;border-radius:8px}
+@keyframes scfl{from{background:rgba(255,255,255,.45)}to{background:transparent}}
+.rkh{font-size:12px;color:var(--mute);margin:-4px 0 6px}
+.rk{display:grid;grid-template-columns:1.5em minmax(0,1fr) auto;grid-template-areas:"r w t" ". b d";gap:2px 8px;align-items:center;padding:5px 8px;border-radius:8px}
+.rk+.rk{margin-top:3px}
+.rk.lv1{background:var(--yelbg)}
+.rk.lv2{background:var(--redbg)}
+.rk .rn{grid-area:r;text-align:right;color:var(--mute);font-family:"Barlow Semi Condensed",sans-serif;font-size:15px}
+.rk .who{grid-area:w;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;font-weight:700;font-size:15px}
+.rk .who .num{font-size:15px;padding:0 5px;flex:none}
+.rk .who .nm2{overflow:hidden;text-overflow:ellipsis}
+.rk .who .face{flex:none}
+.rk .who .onc{flex:none;width:9px;height:9px;border-radius:50%;background:var(--ok)}
+.rkz{font-size:13px;color:var(--mute);margin-top:8px}
+.rk .tm{grid-area:t;text-align:right;font-family:"Barlow Semi Condensed",sans-serif;font-size:24px;font-weight:700;line-height:1.1}
+.rk .bar{grid-area:b}
+.rk .df{grid-area:d;text-align:right;font-size:12px;white-space:nowrap}
+.rk.lv2 .df{color:var(--red);font-weight:700}
+.rk.zero{opacity:.55}
+.pbr{display:grid;grid-template-columns:4.6em minmax(0,1fr) 4em auto;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);font-size:14px}
+.pbr .q{font-family:"Barlow Semi Condensed",sans-serif;font-size:16px;white-space:nowrap}
+.pbr .sc2{font-family:"Barlow Semi Condensed",sans-serif;font-size:16px;text-align:right;white-space:nowrap}
+.pbr.bad{background:var(--redbg)}
+.pbr .wn{display:block;color:var(--red);font-size:12px;font-weight:700}
+.pbr .bt{display:flex;gap:6px}
+.pbr .bt .btn{height:40px;padding:0 12px}
+.ptag{display:inline-block;font-size:12px;border-radius:6px;padding:0 6px;margin-right:6px;border:1px solid var(--line)}
+.ptag.us{background:var(--maroon);color:#fff;border-color:var(--maroon)}
+.ptag.sub{background:var(--sel);color:#fff;border-color:var(--sel)}
 .tlr{display:grid;grid-template-columns:5.2em minmax(0,1fr) 3.2em;gap:6px;align-items:center;font-size:13px}
 .tlr .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tlr .t{white-space:nowrap;text-align:right;font-family:"Barlow Semi Condensed",sans-serif;font-size:14px}
@@ -192,7 +221,7 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--sel);outline-of
     <div class="clock"><span class="per d" id="per">Q1</span><button class="time d" id="time" title="残り時間を修正">10:00</button><button class="go" id="go">開始</button></div>
     <div class="team"><span class="lab" id="oppLab">相手</span><span class="sc d" id="scTh">0</span><div class="pb" data-side="them"><button data-v="1">+1</button><button data-v="2">+2</button><button data-v="3">+3</button></div></div>
   </div>
-  <div class="tools"><button id="homeBtn">ホーム</button><button id="undo">取り消し</button><button id="next">次のQへ</button><button id="exp">書き出し</button><button id="hist">試合一覧</button><button id="set">設定</button></div>
+  <div class="tools"><button id="homeBtn">ホーム</button><button id="undo">取り消し</button><button id="pbp">記録の修正</button><button id="next">次のQへ</button><button id="exp">書き出し</button><button id="hist">試合一覧</button><button id="set">設定</button></div>
 </header>
 <div class="demo" id="demo" hidden>サンプル試合を表示しています（数値は架空）。<button id="demoNew">新しい試合を始める</button></div>
 <div class="status"><span id="cloud">保存先を確認中</span><span class="lg"><i class="sw" style="background:var(--yel)"></i>目安−1分〜＋1分</span><span class="lg"><i class="sw" style="background:var(--red)"></i>目安＋1分超</span><span id="stintLg"></span><span class="kb">キー操作：Space 時計／Enter 交代確定／Esc 選択解除／Ctrl+Z 取り消し／1・2・3 自チーム得点／7・8・9 相手得点</span></div>
@@ -205,7 +234,7 @@ input:focus-visible,button:focus-visible{outline:3px solid var(--sel);outline-of
     <div class="bench" id="bench"></div>
   </section>
   <aside class="side">
-    <div class="panel"><h2>出場タイムライン <span id="tlNote"></span></h2><div id="tl"></div></div>
+    <div class="panel"><h2>出場時間ランキング <span id="tlNote"></span></h2><p class="rkh">色・差は「経過したQまでの目安ペース」との比較（黄＝目安±1分、赤＝目安＋1分超）</p><div id="tl"></div></div>
     <div class="panel"><h2>ラインナップ <span>1分あたり+/-の上位5つ</span></h2><div class="scroll" id="lu"></div></div>
   </aside>
 </main>
@@ -278,8 +307,8 @@ function derive(){
       segStart=e.gt;segKey=keyOf(on);log.push({e,us,th});
     }else if(e.k==='pts'){
       if(e.side==='us')us+=e.v;else th+=e.v;
-      const l=L(keyOf(e.on));if(e.side==='us')l.pf+=e.v;else l.pa+=e.v;
-      e.on.forEach(n=>{pl(n).pm+=e.side==='us'?e.v:-e.v});
+      const l=L(keyOf(on));if(e.side==='us')l.pf+=e.v;else l.pa+=e.v;
+      on.forEach(n=>{pl(n).pm+=e.side==='us'?e.v:-e.v});
     }
   }
   if(on.size)L(segKey).sec+=Math.max(0,now-segStart);
@@ -320,14 +349,13 @@ function benchCard(m){
   return `<button class="pc lv${m.lv}${selIn.has(r.no)?' sel':''}" data-no="${r.no}" data-z="b"><div class="ph"><span class="num">${r.no}</span><span class="nm">${esc(r.name)}</span></div><div class="big d"><span class="tm">${fmt(m.tot)}${pmHtml(m.pm)}</span><span class="marks">${face(Math.max(m.qL,m.cL))}${rest?`<span class="rest">${rest}</span>`:''}</span></div>${barRow('累計',m.reg,m.cT,m.cL)}</button>`;
 }
 function renderTL(D){
-  const g=S.g,total=g.period>4?REG+(g.period-4)*OT:REG,rows=[];
-  const lines=[];for(let p=2;p<=Math.max(4,g.period);p++){lines.push(`<em class="${p===3?'hf':''}" style="left:${PSTART(p)/total*100}%"></em>`)}
-  for(const r of S.roster){const m=D.M[r.no];if(!m||(!m.all.length))continue;
-    const seg=m.all.map(([a,b],i)=>`<span class="${m.on&&i===m.all.length-1?'open':''}" style="left:${a/total*100}%;width:${Math.max(.3,(b-a)/total*100)}%"></span>`).join('');
-    rows.push(`<div class="tlr"><span class="n">#${r.no} ${esc(r.name)}</span><div class="trk">${lines.join('')}${seg}<i class="now" style="left:${Math.min(100,D.now/total*100)}%"></i></div><span class="t">${fmt(m.tot)}</span></div>`)}
-  const qs=[];for(let p=1;p<=Math.max(4,g.period);p++)qs.push(`<span>${pName(p)}</span>`);
-  $('tl').innerHTML=rows.length?`<div class="tl">${rows.join('')}<div class="qax"><span></span><div>${qs.join('')}</div><span></span></div></div>`:'<p class="note">交代を記録すると表示されます。</p>';
+  const all=S.roster.map(r=>D.M[r.no]).filter(m=>m&&(m.tot>0||m.r.dr||m.on)),ms=all.filter(m=>m.tot>0||m.on).sort((a,b)=>b.tot-a.tot||a.r.no-b.r.no),zs=all.filter(m=>!(m.tot>0||m.on));
   $('tlNote').textContent='経過 '+fmt(D.now);
+  if(!ms.some(m=>m.tot>0)){$('tl').innerHTML='<p class="note">交代を記録すると表示されます。</p>';return}
+  $('tl').innerHTML=ms.map((m,i)=>{const d=m.reg-m.cT,lv=m.cL;
+    const df=!(m.cT>0)?'目安なし':(d>60?'出すぎ +'+fmt(d):d>=-60?'目安どおり '+(d>=0?'+':'−')+fmt(Math.abs(d)):'目安まで −'+fmt(-d));
+    const mx=Math.max(m.cT+120,m.reg,1),w=Math.min(100,m.reg/mx*100),mk=m.cT/mx*100;
+    return `<div class="rk lv${lv}${m.tot>0?'':' zero'}"><span class="rn">${i+1}</span><span class="who"><span class="num">${m.r.no}</span><span class="nm2">${esc(m.r.name)}</span>${m.on?'<i class="onc" title="出場中"></i>':''}${m.tot>0?face(lv):''}</span><span class="tm">${fmt(m.tot)}</span><div class="bar"><i class="lv${lv}" style="width:${w}%"></i>${m.cT>0?`<b style="left:${mk}%"></b>`:''}</div><span class="df">${df}　目安${fmt(m.cT)}</span></div>`}).join('')+(zs.length?`<p class="rkz">未出場：${zs.map(m=>'#'+m.r.no+' '+esc(m.r.name)).join('、')}</p>`:'')+'<p class="rkz"><i class="onc" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok)"></i> 緑の点＝今コートにいる選手</p>';
 }
 const luRate=v=>v.sec>0?(v.pf-v.pa)/(v.sec/60):null;
 const LU_MIN=60;
@@ -424,6 +452,61 @@ document.addEventListener('pointerdown',()=>{if(!wakeLk&&wakeSt!=='na'&&wakeWant
 function commit(){saveLocal();if(!S.g.demo&&S.g.events.length)markDirty(S.g.id);render();renderStatus()}
 function pushUndo(kind){undoStack.push({kind,ev:JSON.stringify(S.g.events),p:S.g.period,c:S.g.clock,f:S.g.final});if(undoStack.length>100)undoStack.shift()}
 function addEvent(e){const g=S.g;e.gt=gameTime();e.p=g.period;e.cl=g.clock;g.events.push(e)}
+/* ---------- play by play ---------- */
+const maxP=()=>Math.max(4,S.g.period);
+function onAt(evs,stop){const on=new Set();for(const e of evs){if(e===stop)break;if(e.k==='sub'){e.out.forEach(n=>on.delete(n));e.in.forEach(n=>on.add(n))}}return on}
+function pbpRows(){const on=new Set();let us=0,th=0;return S.g.events.map((e,i)=>{let w='';
+  if(e.k==='sub'){const bo=e.out.filter(n=>!on.has(n)),bi=e.in.filter(n=>on.has(n));
+    if(bo.length)w='OUTの'+bo.map(label).join('、')+'はこの時点でコートにいません';else if(bi.length)w='INの'+bi.map(label).join('、')+'はこの時点ですでにコートにいます';
+    e.out.forEach(n=>on.delete(n));e.in.forEach(n=>on.add(n));if(!w&&on.size>5)w='コートが'+on.size+'人になっています'}
+  else{if(e.side==='us')us+=e.v;else th+=e.v;if(on.size!==5)w='コートが'+on.size+'人のときの得点です'}
+  return{e,i,us,th,w}})}
+function pbpText(e){if(e.k==='pts')return `<span class="ptag ${e.side==='us'?'us':''}">${e.side==='us'?esc(curTeam().short||curTeam().name):esc(S.g.opp||'相手')}</span>+${e.v}`;
+  if(!e.out.length)return `<span class="ptag sub">出場</span>${e.in.map(n=>esc(label(n))).join('、')}`;
+  return `<span class="ptag sub">交代</span>OUT ${e.out.map(n=>esc(label(n))).join('、')} → IN ${e.in.map(n=>esc(label(n))).join('、')}`}
+function afterEdit(){commit();if(S.g.final)archiveCurrent()}
+function openPbp(msg0){const R=pbpRows(),bad=R.filter(r=>r.w).length;
+  openDlg(`<h3>記録の修正（プレーバイプレー）</h3><p class="note">新しい順です。「修正」で時間・選手・得点を直せます。「削除」は2回押しで確定。直した内容は「取り消し」で戻せます。</p>
+  ${bad?`<p class="msg" style="color:var(--red);font-weight:700">つじつまが合わない記録が${bad}件あります（赤い行）。</p>`:''}
+  <div class="dact" style="justify-content:flex-start;margin-top:4px"><button class="btn mar" id="pbAddP">得点を追加</button><button class="btn mar" id="pbAddS">交代を追加</button></div>
+  <p class="msg" id="pbMsg">${esc(msg0||'')}</p>
+  <div>${R.length?R.slice().reverse().map(r=>`<div class="pbr${r.w?' bad':''}"><span class="q">${pName(r.e.p)} ${fmtC(r.e.cl)}</span><span>${pbpText(r.e)}${r.w?`<span class="wn">${esc(r.w)}</span>`:''}</span><span class="sc2">${r.us}-${r.th}</span><span class="bt"><button class="btn" data-pe="${r.i}">修正</button><button class="btn" data-pd="${r.i}">削除</button></span></div>`).join(''):'<p class="note">まだ記録がありません。</p>'}</div>
+  <div class="dact"><button class="btn pri" id="pbClose">閉じる</button></div>`,b=>{
+    b.querySelector('#pbClose').onclick=()=>dlg.close();
+    b.querySelector('#pbAddP').onclick=()=>openEv(null,'pts');
+    b.querySelector('#pbAddS').onclick=()=>openEv(null,'sub');
+    b.querySelectorAll('[data-pe]').forEach(bt=>bt.onclick=()=>openEv(+bt.dataset.pe));
+    b.querySelectorAll('[data-pd]').forEach(bt=>bt.onclick=()=>{if(bt.dataset.c!=='1'){bt.dataset.c='1';bt.textContent='本当に削除';b.querySelector('#pbMsg').textContent='もう一度押すとこの記録を削除します。';return}
+      pushUndo('edit');S.g.events.splice(+bt.dataset.pd,1);selOut.clear();selIn.clear();afterEdit();openPbp('削除しました。')})})}
+function openEv(idx,kind){const g=S.g,old=idx==null?null:g.events[idx];kind=old?old.k:kind;
+  const d={p:old?old.p:g.period,cl:Math.ceil(old?old.cl:g.clock),side:old&&old.side||'us',v:old&&old.v||2,out:new Set(old&&old.out||[]),in:new Set(old&&old.in||[])};
+  const draw=()=>{const gt=PSTART(d.p)+PLEN(d.p)-d.cl;
+    const base=g.events.filter(e=>e!==old),pos=base.findIndex(e=>e.gt>gt),on=onAt(base,pos<0?undefined:base[pos]);
+    const avail=S.roster.filter(r=>r.dr||on.has(r.no)||d.in.has(r.no)||d.out.has(r.no));
+    const chip=(r,set,key,cls)=>`<button class="pchip ${set.has(r.no)?cls:''}" data-${key}="${r.no}"><b>${r.no}</b>${esc(r.name)}</button>`;
+    const qs=[];for(let p=1;p<=maxP();p++)qs.push(`<option value="${p}"${p===d.p?' selected':''}>${pName(p)}</option>`);
+    const body=kind==='pts'?`<h4>どちらの得点</h4><div class="chips"><button class="pchip ${d.side==='us'?'on':''}" data-sd="us">${esc(curTeam().short||curTeam().name)}</button><button class="pchip ${d.side==='them'?'on':''}" data-sd="them">${esc(g.opp||'相手')}</button></div><h4>点数</h4><div class="chips">${[1,2,3].map(v=>`<button class="pchip ${d.v===v?'on':''}" data-pv="${v}"><b>+${v}</b></button>`).join('')}</div>`
+      :`<h4>OUT（この時点でコートにいる選手）</h4><div class="chips">${avail.filter(r=>on.has(r.no)).map(r=>chip(r,d.out,'po','on')).join('')||'<span class="note">コートに選手がいません</span>'}</div><h4>IN（この時点でベンチの選手）</h4><div class="chips">${avail.filter(r=>!on.has(r.no)).map(r=>chip(r,d.in,'pi','st')).join('')}</div><p class="note">この時点のコート：${[...on].map(label).map(esc).join('、')||'なし'}（${on.size}人）</p>`;
+    openDlg(`<h3>${old?'記録を修正':kind==='pts'?'得点を追加':'交代を追加'}</h3><div class="fr"><label>Q<select class="tsel" id="evQ">${qs.join('')}</select></label><label>残り 分<input id="evM" type="number" inputmode="numeric" min="0" max="10" value="${Math.floor(d.cl/60)}" style="width:5em"></label><label>秒<input id="evS" type="number" inputmode="numeric" min="0" max="59" value="${d.cl%60}" style="width:5em"></label></div>${body}<p class="msg" id="evMsg" style="color:var(--red)"></p><div class="dact"><button class="btn" id="evX">戻る</button><button class="btn mar" id="evOk">保存</button></div>`,b=>{
+      const rd=()=>{d.p=+b.querySelector('#evQ').value;const m=+b.querySelector('#evM').value||0,sc=+b.querySelector('#evS').value||0;d.cl=Math.min(PLEN(d.p),Math.max(0,m*60+sc))};
+      ['#evQ','#evM','#evS'].forEach(q=>b.querySelector(q).onchange=()=>{rd();if(kind==='sub')draw()});
+      b.querySelectorAll('[data-sd]').forEach(x=>x.onclick=()=>{rd();d.side=x.dataset.sd;draw()});
+      b.querySelectorAll('[data-pv]').forEach(x=>x.onclick=()=>{rd();d.v=+x.dataset.pv;draw()});
+      b.querySelectorAll('[data-po]').forEach(x=>x.onclick=()=>{rd();const n=+x.dataset.po;d.out.has(n)?d.out.delete(n):d.out.add(n);draw()});
+      b.querySelectorAll('[data-pi]').forEach(x=>x.onclick=()=>{rd();const n=+x.dataset.pi;d.in.has(n)?d.in.delete(n):d.in.add(n);draw()});
+      b.querySelector('#evX').onclick=()=>openPbp();
+      b.querySelector('#evOk').onclick=()=>{rd();const er=t=>b.querySelector('#evMsg').textContent=t;const ngt=PSTART(d.p)+PLEN(d.p)-d.cl;
+        if(!g.final&&ngt>gameTime()+0.5){er('今の時計より先の時間は入れられません。');return}
+        if(kind==='sub'){const o=[...d.out],i2=[...d.in];if(!i2.length){er('INの選手を選んでください。');return}
+          if(o.length&&o.length!==i2.length){er('OUTとINの人数をそろえてください（OUT '+o.length+'人・IN '+i2.length+'人）。');return}
+          if(!o.length&&on.size+i2.length>5){er('コートが6人以上になります。OUTも選んでください。');return}}
+        pushUndo('edit');const ev=kind==='pts'?{k:'pts',side:d.side,v:d.v}:{k:'sub',in:[...d.in],out:[...d.out]};ev.p=d.p;ev.cl=d.cl;ev.gt=ngt;
+        const E=g.events;if(old&&old.p===d.p&&Math.ceil(old.cl)===d.cl){ev.gt=old.gt;ev.cl=old.cl;E[E.indexOf(old)]=ev}
+        else{if(old)E.splice(E.indexOf(old),1);let k=E.findIndex(e=>e.gt>ngt);if(k<0)k=E.length;E.splice(k,0,ev)}
+        if(ev.k==='pts')ev.on=[...onAt(E,ev)];
+        selOut.clear();selIn.clear();afterEdit();openPbp(old?'修正しました。':'追加しました。')}})};
+  draw()}
+$('pbp').onclick=()=>openPbp();
 
 $('court').addEventListener('click',ev=>{const b=ev.target.closest('.pc');if(!b||S.g.final)return;const n=+b.dataset.no;selOut.has(n)?selOut.delete(n):selOut.add(n);render()});
 $('bench').addEventListener('click',ev=>{const b=ev.target.closest('.pc');if(!b||S.g.final)return;const n=+b.dataset.no,D=derive();
@@ -438,7 +521,7 @@ $('go').onclick=toggleClock;
 $('undo').onclick=()=>{const u=undoStack.pop();if(!u)return;S.g.events=JSON.parse(u.ev);if(u.kind==='period'||u.kind==='final'){S.g.period=u.p;S.g.clock=u.c;S.g.final=u.f;S.g.running=false}selOut.clear();selIn.clear();commit()};
 let last=performance.now(),lastLocal=0;
 setInterval(()=>{const t=performance.now(),d=(t-last)/1000;last=t;const g=S.g;if(!g.running)return;g.clock=Math.max(0,g.clock-d);if(g.clock<=0){g.clock=0;g.running=false;commit();return}if(t-lastLocal>2000){lastLocal=t;saveLocal()}render()},200);
-function score(side,v){if(S.g.final)return;const D=derive();pushUndo('pts');addEvent({k:'pts',side,v,on:[...D.on]});commit()}
+function score(side,v){if(S.g.final)return;const D=derive();pushUndo('pts');addEvent({k:'pts',side,v,on:[...D.on]});commit();const el=$(side==='us'?'scUs':'scTh');el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
 document.addEventListener('keydown',e=>{if(!$('home').hidden||$('dlg').open||/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||''))return;
   if(e.code==='Space'){e.preventDefault();toggleClock();return}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$('undo').click();return}

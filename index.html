@@ -131,6 +131,9 @@ tr.short td{color:var(--mute)}
 .pbr .wn{display:block;color:var(--red);font-size:12px;font-weight:700}
 .pbr .bt{display:flex;gap:6px}
 .pbr .bt .btn{height:40px;padding:0 12px}
+.pbq{font-weight:700;font-size:13px;color:var(--mute);padding:10px 4px 2px;border-bottom:2px solid var(--line)}
+.pbr.end{background:var(--yelbg)}
+.ptag.end{background:var(--ink);color:#fff;border-color:var(--ink)}
 .ptag{display:inline-block;font-size:12px;border-radius:6px;padding:0 6px;margin-right:6px;border:1px solid var(--line)}
 .ptag.us{background:var(--maroon);color:#fff;border-color:var(--maroon)}
 .ptag.sub{background:var(--sel);color:#fff;border-color:var(--sel)}
@@ -465,14 +468,15 @@ function pbpText(e){if(e.k==='pts')return `<span class="ptag ${e.side==='us'?'us
   if(!e.out.length)return `<span class="ptag sub">出場</span>${e.in.map(n=>esc(label(n))).join('、')}`;
   return `<span class="ptag sub">交代</span>OUT ${e.out.map(n=>esc(label(n))).join('、')} → IN ${e.in.map(n=>esc(label(n))).join('、')}`}
 function afterEdit(){commit();if(S.g.final)archiveCurrent()}
-function openPbp(msg0){const R=pbpRows(),bad=R.filter(r=>r.w).length;
-  openDlg(`<h3>記録の修正（プレーバイプレー）</h3><p class="note">新しい順です。「修正」で時間・選手・得点を直せます。「削除」は2回押しで確定。直した内容は「取り消し」で戻せます。</p>
+function openPbp(msg0){const g=S.g,R=pbpRows(),bad=R.filter(r=>r.w).length,fin=scoreOf(g);
+  openDlg(`<h3>記録の修正（プレーバイプレー）</h3><p class="note">新しい順です。「修正」で時間・選手・得点を直せます。「削除」は2回押しで確定。直した内容は「取り消し」で戻せます。${g.final?'試合終了後も修正できます。続きを記録したいときは「試合終了を取り消す」を押してください。':''}</p>
   ${bad?`<p class="msg" style="color:var(--red);font-weight:700">つじつまが合わない記録が${bad}件あります（赤い行）。</p>`:''}
   <div class="dact" style="justify-content:flex-start;margin-top:4px"><button class="btn mar" id="pbAddP">得点を追加</button><button class="btn mar" id="pbAddS">交代を追加</button></div>
   <p class="msg" id="pbMsg">${esc(msg0||'')}</p>
-  <div>${R.length?R.slice().reverse().map(r=>`<div class="pbr${r.w?' bad':''}"><span class="q">${pName(r.e.p)} ${fmtC(r.e.cl)}</span><span>${pbpText(r.e)}${r.w?`<span class="wn">${esc(r.w)}</span>`:''}</span><span class="sc2">${r.us}-${r.th}</span><span class="bt"><button class="btn" data-pe="${r.i}">修正</button><button class="btn" data-pd="${r.i}">削除</button></span></div>`).join(''):'<p class="note">まだ記録がありません。</p>'}</div>
+  <div>${g.final?`<div class="pbq">試合終了</div><div class="pbr end"><span class="q">${pName(g.period)} 0:00</span><span><span class="ptag end">試合終了</span>最終スコア</span><span class="sc2">${fin[0]}-${fin[1]}</span><span class="bt"><button class="btn" id="pbReopen">試合終了を取り消す</button></span></div>`:''}${R.length?R.slice().reverse().map((r,k,A)=>`${k===0||A[k-1].e.p!==r.e.p?`<div class="pbq">${pName(r.e.p)}</div>`:''}<div class="pbr${r.w?' bad':''}"><span class="q">${pName(r.e.p)} ${fmtC(r.e.cl)}</span><span>${pbpText(r.e)}${r.w?`<span class="wn">${esc(r.w)}</span>`:''}</span><span class="sc2">${r.us}-${r.th}</span><span class="bt"><button class="btn" data-pe="${r.i}">修正</button><button class="btn" data-pd="${r.i}">削除</button></span></div>`).join(''):'<p class="note">まだ記録がありません。</p>'}</div>
   <div class="dact"><button class="btn pri" id="pbClose">閉じる</button></div>`,b=>{
     b.querySelector('#pbClose').onclick=()=>dlg.close();
+    {const ro=b.querySelector('#pbReopen');if(ro)ro.onclick=()=>{pushUndo('final');g.final=false;g.running=false;selOut.clear();selIn.clear();commit();archiveCurrent();wakeSync();openPbp('試合終了を取り消しました。試合画面で続きを記録できます（もう一度終えるときは「次のQへ」→「試合終了」）。')}}
     b.querySelector('#pbAddP').onclick=()=>openEv(null,'pts');
     b.querySelector('#pbAddS').onclick=()=>openEv(null,'sub');
     b.querySelectorAll('[data-pe]').forEach(bt=>bt.onclick=()=>openEv(+bt.dataset.pe));
